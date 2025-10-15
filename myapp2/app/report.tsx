@@ -25,10 +25,17 @@ const StudyReport: React.FC = () => {
     isPrimary: boolean;
   }
   const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, unit, isPrimary }) => (
-    <View style={[styles.card, { flex: 1, padding: 16, borderWidth: isPrimary ? 2 : 1, borderColor: isPrimary ? `${Colors.primary}30` : Colors.border }]}>
-      <Text style={{ fontSize: 12, color: Colors.mutedForeground, marginBottom: 8 }}>{title}</Text>
-      <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{value}</Text>
-      <Text style={{ fontSize: 14, color: Colors.mutedForeground, marginTop: 4 }}>{unit}</Text>
+    <View style={[
+      styles.card,
+      styles.summaryCardBase,
+      {
+        borderWidth: isPrimary ? 2 : 1,
+        borderColor: isPrimary ? Colors.primaryBorder : Colors.border
+      }
+    ]}>
+      <Text style={[styles.textSm, styles.textMutedForeground, { marginBottom: 8 }]}>{title}</Text>
+      <Text style={[styles.text2xl, styles.textBold]}>{value}</Text>
+      <Text style={[styles.textMd, styles.textMutedForeground, { marginTop: 4 }]}>{unit}</Text>
     </View>
   );
 
@@ -40,11 +47,11 @@ const StudyReport: React.FC = () => {
   const ChartCard: React.FC<ChartCardProps> = ({ title, description, isBar }) => (
     <View style={[styles.card, { padding: 16, marginBottom: 16 }]}>
       <View style={{ paddingBottom: 12 }}>
-        <Text style={{ fontSize: 18, fontWeight: '600' }}>{title}</Text>
-        <Text style={{ fontSize: 14, color: Colors.mutedForeground, marginTop: 2 }}>{description}</Text>
+        <Text style={[styles.textLg, styles.textSemiBold]}>{title}</Text>
+        <Text style={[styles.textMd, styles.textMutedForeground, { marginTop: 2 }]}>{description}</Text>
       </View>
-      <View style={{ height: 200, backgroundColor: Colors.muted, borderRadius: 12, borderWidth: 2, borderStyle: 'dashed', borderColor: Colors.border, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={[styles.textMutedForeground, { fontSize: 14 }]}>{isBar ? 'ページ数 (棒グラフのスタブ)' : '学習時間 (折れ線グラフのスタブ)'}</Text>
+      <View style={styles.chartPlaceholder}>
+        <Text style={[styles.textMutedForeground, styles.textMd]}>{isBar ? 'ページ数 (棒グラフのスタブ)' : '学習時間 (折れ線グラフのスタブ)'}</Text>
       </View>
     </View>
   );
@@ -52,19 +59,19 @@ const StudyReport: React.FC = () => {
   const SubjectBreakdownCard: React.FC = () => (
     <View style={[styles.card, { padding: 16, marginBottom: 16 }]}>
       <View style={{ paddingBottom: 12 }}>
-        <Text style={{ fontSize: 18, fontWeight: '600' }}>科目別学習時間</Text>
-        <Text style={{ fontSize: 14, color: Colors.mutedForeground, marginTop: 2 }}>時間の内訳と割合</Text>
+        <Text style={[styles.textLg, styles.textSemiBold]}>科目別学習時間</Text>
+        <Text style={[styles.textMd, styles.textMutedForeground, { marginTop: 2 }]}>時間の内訳と割合</Text>
       </View>
       {subjectData.map((item: SubjectBreakdown, index: number) => (
         <View key={index} style={{ marginBottom: 12 }}>
           <View style={[styles.flexRow, { justifyContent: 'space-between', marginBottom: 4 }]}>
             <View style={styles.flexRow}>
-              <Text style={{ fontSize: 12, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, color: Colors.mutedForeground, marginRight: 8 }}>{item.subject}</Text>
-              <Text style={[styles.textMutedForeground, { fontSize: 12 }]}>{formatMinToHourMin(item.duration)}</Text>
+              <Text style={styles.tagBase}>{item.subject}</Text>
+              <Text style={[styles.textMutedForeground, styles.textSm]}>{formatMinToHourMin(item.duration)}</Text>
             </View>
-            <Text style={{ fontSize: 14, fontWeight: '600' }}>{item.percentage}%</Text>
+            <Text style={[styles.textMd, styles.textSemiBold]}>{item.percentage}%</Text>
           </View>
-          <View style={{ height: 10, backgroundColor: Colors.muted, borderRadius: 5, overflow: 'hidden' }}>
+          <View style={styles.subjectBreakdownBar}>
             <View style={{ height: '100%', width: `${item.percentage}%`, backgroundColor: Colors.primary, borderRadius: 5 }} />
           </View>
         </View>
@@ -76,14 +83,14 @@ const StudyReport: React.FC = () => {
     <View style={{ flex: 1, paddingVertical: 10 }}>
       <View style={[styles.flexRow, { justifyContent: 'space-between', marginBottom: 16 }]}>
         <TextInput
-          style={{ borderWidth: 1, borderColor: Colors.border, padding: 8, borderRadius: 8, backgroundColor: Colors.card }}
+          style={[styles.inputBase, { flex: 1, marginRight: 8, padding: 8, borderRadius: 8, backgroundColor: Colors.card }]}
           value={reportType === 'week' ? '週間レポート' : '月間レポート'}
           onChangeText={(text) => setReportType(text.includes('週間') ? 'week' : 'month')}
           placeholder="レポート期間"
         />
-        <TouchableOpacity style={[styles.flexRow, { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.border }]}>
-          <Icon name="Download" style={{ fontSize: 16, color: Colors.primary, marginRight: 6 }} />
-          <Text style={{ fontSize: 14, color: Colors.primary }}>CSV</Text>
+        <TouchableOpacity style={styles.buttonSecondary}>
+          <Icon name="Download" style={[styles.textSm, styles.textPrimary, { marginRight: 6 }]} />
+          <Text style={[styles.textMd, styles.textPrimary]}>CSV</Text>
         </TouchableOpacity>
       </View>
 

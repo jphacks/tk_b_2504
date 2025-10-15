@@ -1,7 +1,7 @@
 // 学習タイマーコンポーネント
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
 // @react-navigation/native がインストールされている前提
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -53,7 +53,7 @@ const StudyTimer: React.FC = () => {
       return () => stopTimer();
     }, [timerRunning])
   );
-  
+
   // アンマウント時にタイマーをクリア
   useEffect(() => {
     return () => stopTimer();
@@ -71,53 +71,63 @@ const StudyTimer: React.FC = () => {
     const finalMin = m ? m.replace('m', '') : '0';
 
     return (
-      <View style={[styles.card, { flex: 1, padding: 16, borderWidth: isPrimary ? 2 : 1, borderColor: isPrimary ? `${Colors.primary}30` : Colors.border }]}>
+      <View style={[
+        styles.card,
+        {
+          flex: 1, padding: 16,
+          borderWidth: isPrimary ? 2 : 1,
+          borderColor: isPrimary ? Colors.primaryBorder : Colors.border
+        }
+      ]}>
         <View style={[styles.flexRow, { marginBottom: 8 }]}>
           <Icon name={isPrimary ? 'Clock' : 'Calendar'} style={{ fontSize: 16, marginRight: 4, color: Colors.mutedForeground }} />
-          <Text style={{ fontSize: 12, color: Colors.mutedForeground }}>{title}</Text>
+          <Text style={[styles.textSm, styles.textMutedForeground]}>{title}</Text>
         </View>
-        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{h}</Text>
-        <Text style={{ fontSize: 14, color: Colors.mutedForeground, marginTop: 4 }}>{finalMin}m</Text>
-        <Text style={{ fontSize: 12, color: Colors.mutedForeground, marginTop: 4 }}>{detail}</Text>
+        <Text style={[styles.text2xl, styles.textBold]}>{h}</Text>
+        <Text style={[styles.textMd, styles.textMutedForeground, { marginTop: 4 }]}>{finalMin}m</Text>
+        <Text style={[styles.textSm, styles.textMutedForeground, { marginTop: 4 }]}>{detail}</Text>
       </View>
     );
   };
 
   const StopwatchContent: React.FC = () => (
-    <View style={{ marginVertical: 10 }}>
-      <View style={{ backgroundColor: `${Colors.primary}10`, borderRadius: 12, padding: 32, alignItems: 'center', marginBottom: 16 }}>
-        <Text style={{ fontSize: 48, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontWeight: 'bold', marginBottom: 24 }}>{formatDuration(elapsedTime)}</Text>
+    <View style={styles.contentSection}>
+      <View style={[
+        styles.stopwatchDisplayBox,
+        { backgroundColor: Colors.primaryLight }
+      ]}>
+        <Text style={styles.stopwatchText}>{formatDuration(elapsedTime)}</Text>
         <View style={styles.flexRow}>
           <TouchableOpacity
             onPress={timerRunning ? stopTimer : startTimer}
-            style={[styles.flexOne, styles.flexRow, { height: 48, borderRadius: 12, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 12 }]}
+            style={[styles.flexOne, styles.buttonPrimary, { marginRight: 12 }]}
           >
-            <Icon name={timerRunning ? 'Pause' : 'Play'} style={{ fontSize: 16, color: Colors.primaryForeground, marginRight: 8 }} />
-            <Text style={{ fontSize: 16, color: Colors.primaryForeground, fontWeight: '600' }}>{timerRunning ? '一時停止' : '開始'}</Text>
+            <Icon name={timerRunning ? 'Pause' : 'Play'} style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
+            <Text style={styles.buttonText}>{timerRunning ? '一時停止' : '開始'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={resetTimer}
-            style={[styles.flexOne, styles.flexRow, { height: 48, borderRadius: 12, backgroundColor: Colors.destructive, justifyContent: 'center', alignItems: 'center' }]}
+            style={[styles.flexOne, styles.timerButtonDanger]}
           >
-            <Icon name="Square" style={{ fontSize: 16, color: Colors.primaryForeground, marginRight: 8 }} />
-            <Text style={{ fontSize: 16, color: Colors.primaryForeground, fontWeight: '600' }}>終了</Text>
+            <Icon name="Square" style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
+            <Text style={styles.buttonText}>終了</Text>
           </TouchableOpacity>
         </View>
       </View>
       <View style={styles.flexRow}>
         <View style={{ flex: 1, marginRight: 10 }}>
-          <Text style={{ fontSize: 12, fontWeight: '600', marginBottom: 4 }}>科目</Text>
+          <Text style={styles.label}>科目</Text>
           <TextInput
-            style={{ borderWidth: 1, borderColor: Colors.border, padding: 8, borderRadius: 8, backgroundColor: Colors.card }}
+            style={[styles.inputBase, { padding: 8 }]}
             value={currentSubject}
             onChangeText={setCurrentSubject}
             placeholder="例: 数学"
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 12, fontWeight: '600', marginBottom: 4 }}>ページ数</Text>
+          <Text style={styles.label}>ページ数</Text>
           <TextInput
-            style={{ borderWidth: 1, borderColor: Colors.border, padding: 8, borderRadius: 8, backgroundColor: Colors.card }}
+            style={[styles.inputBase, { padding: 8 }]}
             value={currentPages}
             onChangeText={setCurrentPages}
             placeholder="0"
@@ -143,10 +153,10 @@ const StudyTimer: React.FC = () => {
     };
 
     return (
-      <View style={{ marginVertical: 10, padding: 16, backgroundColor: Colors.muted, borderRadius: 8 }}>
-        <Text style={{ fontSize: 12, fontWeight: '600', marginBottom: 4 }}>科目</Text>
+      <View style={styles.contentSection}>
+        <Text style={styles.label}>科目</Text>
         <TextInput
-          style={{ borderWidth: 1, borderColor: Colors.border, padding: 8, borderRadius: 8, backgroundColor: Colors.card, marginBottom: 12 }}
+          style={[styles.inputBase, { marginBottom: 12, padding: 8 }]}
           value={manualSubject}
           onChangeText={setManualSubject}
           placeholder="例: 数学"
@@ -154,9 +164,9 @@ const StudyTimer: React.FC = () => {
 
         <View style={styles.flexRow}>
           <View style={{ flex: 1, marginRight: 10 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', marginBottom: 4 }}>開始時刻</Text>
+            <Text style={styles.label}>開始時刻</Text>
             <TextInput
-              style={{ borderWidth: 1, borderColor: Colors.border, padding: 8, borderRadius: 8, backgroundColor: Colors.card }}
+              style={[styles.inputBase, { padding: 8 }]}
               value={manualStartTime}
               onChangeText={setManualStartTime}
               placeholder="09:00"
@@ -164,9 +174,9 @@ const StudyTimer: React.FC = () => {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', marginBottom: 4 }}>終了時刻</Text>
+            <Text style={styles.label}>終了時刻</Text>
             <TextInput
-              style={{ borderWidth: 1, borderColor: Colors.border, padding: 8, borderRadius: 8, backgroundColor: Colors.card }}
+              style={[styles.inputBase, { padding: 8 }]}
               value={manualEndTime}
               onChangeText={setManualEndTime}
               placeholder="10:30"
@@ -175,9 +185,9 @@ const StudyTimer: React.FC = () => {
           </View>
         </View>
 
-        <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4 }}>ページ数</Text>
+        <Text style={[styles.label, { marginTop: 12 }]}>ページ数</Text>
         <TextInput
-          style={{ borderWidth: 1, borderColor: Colors.border, padding: 8, borderRadius: 8, backgroundColor: Colors.card, marginBottom: 16 }}
+          style={[styles.inputBase, { marginBottom: 16, padding: 8 }]}
           value={manualPages}
           onChangeText={setManualPages}
           placeholder="0"
@@ -186,9 +196,9 @@ const StudyTimer: React.FC = () => {
 
         <TouchableOpacity
           onPress={handleSave}
-          style={[styles.flexRow, { height: 48, borderRadius: 12, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' }]}
+          style={styles.buttonPrimary}
         >
-          <Text style={{ fontSize: 16, color: Colors.primaryForeground, fontWeight: '600' }}>記録を保存</Text>
+          <Text style={styles.buttonText}>記録を保存</Text>
         </TouchableOpacity>
       </View>
     );
@@ -197,21 +207,25 @@ const StudyTimer: React.FC = () => {
   const RecentSessionsCard: React.FC = () => (
     <View style={[styles.card, { padding: 16, marginBottom: 16 }]}>
       <View style={{ paddingBottom: 12 }}>
-        <Text style={{ fontSize: 18, fontWeight: '600' }}>最近の学習記録</Text>
+        <Text style={[styles.textLg, styles.textSemiBold]}>最近の学習記録</Text>
       </View>
       <View>
         {mockSessions.map((session: Session) => (
-          <View key={session.id} style={[styles.flexRow, { justifyContent: 'space-between', padding: 12, backgroundColor: `${Colors.muted}80`, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, marginBottom: 8 }]}>
+          <View key={session.id} style={[styles.flexRow, {
+            justifyContent: 'space-between', padding: 12,
+            backgroundColor: Colors.mutedTranslucent, // 修正: `${Colors.muted}80` -> Colors.mutedTranslucent
+            borderRadius: 12, borderWidth: 1, borderColor: Colors.border, marginBottom: 8
+          }]}>
             <View style={styles.flexOne}>
               <View style={styles.flexRow}>
-                <Text style={{ fontSize: 12, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, color: Colors.mutedForeground, marginRight: 8 }}>{session.subject}</Text>
-                <Text style={[styles.textMutedForeground, { fontSize: 12 }]}>{session.date}</Text>
+                <Text style={[styles.textSm, styles.tagBase, { marginRight: 8 }]}>{session.subject}</Text>
+                <Text style={[styles.textMutedForeground, styles.textSm]}>{session.date}</Text>
               </View>
-              <Text style={[styles.textMutedForeground, { fontSize: 12, marginTop: 4 }]}>{session.time}</Text>
+              <Text style={[styles.textMutedForeground, styles.textSm, { marginTop: 4 }]}>{session.time}</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 14, fontWeight: '600' }}>{session.duration}</Text>
-              <Text style={[styles.textMutedForeground, { fontSize: 12 }]}>{session.pages}p</Text>
+              <Text style={[styles.textMd, styles.textSemiBold]}>{session.duration}</Text>
+              <Text style={[styles.textMutedForeground, styles.textSm]}>{session.pages}p</Text>
             </View>
           </View>
         ))}
@@ -229,8 +243,8 @@ const StudyTimer: React.FC = () => {
 
       <View style={[styles.card, { padding: 16, marginVertical: 16 }]}>
         <View style={{ paddingBottom: 12 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600' }}>ストップウォッチ</Text>
-          <Text style={{ fontSize: 14, color: Colors.mutedForeground, marginTop: 2 }}>学習時間を記録</Text>
+          <Text style={[styles.textLg, styles.textSemiBold]}>ストップウォッチ</Text>
+          <Text style={[styles.textMd, styles.textMutedForeground, { marginTop: 2 }]}>学習時間を記録</Text>
         </View>
 
         {/* タブナビゲーション */}
@@ -239,13 +253,13 @@ const StudyTimer: React.FC = () => {
             onPress={() => setCurrentTab('stopwatch')}
             style={[styles.flexOne, { padding: 8, borderRadius: 8, backgroundColor: currentTab === 'stopwatch' ? Colors.card : Colors.muted, elevation: currentTab === 'stopwatch' ? 2 : 0, alignItems: 'center', justifyContent: 'center' }]}
           >
-            <Text style={{ fontWeight: '600' }}>タイマー</Text>
+            <Text style={styles.textSemiBold}>タイマー</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setCurrentTab('manual')}
             style={[styles.flexOne, { padding: 8, borderRadius: 8, backgroundColor: currentTab === 'manual' ? Colors.card : Colors.muted, elevation: currentTab === 'manual' ? 2 : 0, alignItems: 'center', justifyContent: 'center' }]}
           >
-            <Text style={{ fontWeight: '600' }}>手動入力</Text>
+            <Text style={styles.textSemiBold}>手動入力</Text>
           </TouchableOpacity>
         </View>
 
