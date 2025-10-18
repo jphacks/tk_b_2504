@@ -22,29 +22,29 @@ const getCurrentDate = (): string => {
 
 const StudyMemo: React.FC = () => {
     const [memos, setMemos] = useState<Memo[]>(mockMemos);
-    const [newMemoText, setNewMemoText] = useState<string>('');
+    const [newMemoContent, setNewMemoContent] = useState<string>(''); // ★ 修正
     const [newMemoSubject, setNewMemoSubject] = useState<string>('');
     const [newMemoTags, setNewMemoTags] = useState<string>('');
     const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
 
     const handleSaveMemo = () => {
-        if (!newMemoText.trim() && !selectedImageUri) {
+        if (!newMemoContent.trim() && !selectedImageUri) { // ★ 修正
             Alert.alert('エラー', 'メモ内容または画像を入力してください。');
             return;
         }
 
         const newMemo: Memo = {
             id: Date.now().toString(),
-            text: newMemoText.trim(),
             subject: newMemoSubject.trim() || 'その他',
+            content: newMemoContent.trim(), // ★ 修正
             date: getCurrentDate(),
             tags: newMemoTags.split(',').map(tag => tag.trim()).filter(tag => tag),
-            // ★ (注意) 画像URIはMemo型に未定義のため、ここでは保存せずクリア
+            imageUri: selectedImageUri,
         };
 
         setMemos([newMemo, ...memos]);
 
-        setNewMemoText('');
+        setNewMemoContent(''); // ★ 修正
         setNewMemoSubject('');
         setNewMemoTags('');
         setSelectedImageUri(null);
@@ -53,9 +53,6 @@ const StudyMemo: React.FC = () => {
 
     // ★ 画像ピッカーのロジック (スタブ)
     const pickImage = async (useCamera: boolean) => {
-        // ... (実際のImagePickerのロジックは省略)
-
-        // ★ シミュレーションのため、ダミーのURIを設定
         Alert.alert(useCamera ? 'カメラ起動' : 'ライブラリ起動', '画像選択をシミュレーションします。');
         setSelectedImageUri('https://via.placeholder.com/300x150?text=Image+Attached');
     };
@@ -76,7 +73,8 @@ const StudyMemo: React.FC = () => {
                     </Text>
                 </View>
             </View>
-            <Text style={{ fontSize: 14, lineHeight: 22 }}>{memo.text}</Text>
+            {/* ★ 修正: content に修正 */}
+            <Text style={{ fontSize: 14, lineHeight: 22 }}>{memo.content}</Text> 
             {memo.tags.length > 0 && (
                 <View style={[styles.flexRow, { flexWrap: 'wrap', marginTop: 8 }]}>
                     {memo.tags.map((tag, index) => (
@@ -101,7 +99,7 @@ const StudyMemo: React.FC = () => {
                     <Text style={[styles.textMd, styles.textMutedForeground, { marginTop: 2 }]}>学習中の気づきや要点を記録</Text>
                 </View>
 
-                <View style={styles.contentSection}>
+                <View style={{ marginVertical: 10 }}>
                     {/* ★ 画像インポートボタン */}
                     <View style={[styles.flexRow, { justifyContent: 'space-between', marginBottom: 16 }]}>
                         <TouchableOpacity
@@ -142,10 +140,10 @@ const StudyMemo: React.FC = () => {
 
                     <Text style={styles.label}>メモ内容</Text>
                     <TextInput
-                        style={[styles.inputBase, { height: 100, marginBottom: 12 }]}
+                        style={[styles.inputBase, { height: 100, marginBottom: 12, textAlignVertical: 'top' }]}
                         multiline={true}
-                        value={newMemoText}
-                        onChangeText={setNewMemoText}
+                        value={newMemoContent} // ★ 修正
+                        onChangeText={setNewMemoContent} // ★ 修正
                         placeholder="重要な公式、問題の解法、暗記すべき事項などを入力..."
                     />
 

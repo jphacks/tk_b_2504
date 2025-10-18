@@ -1,4 +1,4 @@
-// 型定義とモックデータ、ユーティリティ関数、アイコンコンポーネント
+// definition.tsx
 
 import { Text } from 'react-native';
 
@@ -6,7 +6,8 @@ import { Text } from 'react-native';
 // 1. 型定義 (Type Definitions)
 // ====================================================================
 
-export type TabName = 'question' | 'generate' | 'timer' | 'report' | 'memo';
+// ★ 修正1: TabNameに 'test' を追加
+export type TabName = 'question' | 'generate' | 'test' | 'timer' | 'report' | 'memo';
 
 export interface Question {
     id: string;
@@ -34,11 +35,12 @@ export interface Answer {
     date: string;
 }
 
+// ★ 修正2: Session 型を数値ベースに変更
 export interface Session {
     id: string;
     subject: string;
-    time: string;
-    duration: string;
+    durationMin: number;    // 分単位の学習時間 (timer/reportで使用)
+    secondsRemainder: number; // 60秒未満の残り秒数 (timerで使用)
     pages: number;
     date: string;
 }
@@ -57,163 +59,91 @@ export interface SubjectBreakdown {
 
 export interface Memo {
     id: string;
-    text: string;
+    // ★ 修正3: text を content に変更 (memo.tsxのエラー解消のため)
+    content: string;
     subject: string;
-    date: string;
     tags: string[];
+    date: string;
+    // ★ 修正4: imageUri を追加 (memo.tsxのエラー解消のため)
+    imageUri: string | null;
 }
 
 // ====================================================================
 // 2. モックデータ (Mocks)
 // ====================================================================
 
-// ✅ 修正済み: もともとの問題を削除（空に）
-export const mockPreviousQuestions: Question[] = [];
+export const mockQuestion: string = 'y = x² + 2x + 1 のグラフの頂点の座標を求めよ。';
 
-export const mockQuestion: string =
-  '三角形ABCにおいて、AB=5cm, BC=12cm, ∠B=90°のとき、ACの長さを求めよ。';
+export const mockAIAnswer: string = `**解説**
+二次関数 y = x² + 2x + 1 の頂点の座標を求めるには、平方完成を行います。
+1.  y = x² + 2x + 1
+2.  **平方完成の準備**：xの項（2x）の係数（2）の半分（1）の2乗（1）を足して引きます。
+3.  y = (x² + 2x + 1) - 1 + 1
+4.  y = (x + 1)² + 0
+5.  **頂点の読み取り**：y = a(x - p)² + q の形から、頂点は (p, q) です。
+6.  したがって、頂点の座標は **(-1, 0)** です。
 
-export const mockAIAnswer: string = `【AI解答】
+**類似問題**
+二次関数 y = x² - 4x + 5 の頂点の座標を求めよ。`;
 
-この問題を解くには、三平方の定理を使用します。
-
-**ステップ1: 条件の確認**
-- AB = 5cm
-- BC = 12cm
-- ∠B = 90°（直角）
-
-**ステップ2: 三平方の定理の適用**
-直角三角形において、斜辺の2乗は他の2辺の2乗の和に等しい。
-
-AC² = AB² + BC²
-AC² = 5² + 12²
-AC² = 25 + 144
-AC² = 169
-
-**ステップ3: 解の算出**
-AC = √169 = 13cm
-
-**答え: AC = 13cm**`;
+export const mockPreviousQuestions: Question[] = [
+    { id: 'q1', text: '二次関数 y = x² + 2x + 1 の頂点の座標を求めよ。', subject: '数学', date: '10/18', answered: true, unit: '二次関数' },
+    { id: 'q2', text: '光合成の化学反応式を記述せよ。', subject: '理科', date: '10/17', answered: false, unit: '生物' },
+    { id: 'q3', text: 'I am reading a book. を受動態にしなさい。', subject: '英語', date: '10/16', answered: true, unit: '受動態' },
+];
 
 export const mockAnswers: Answer[] = [
-  {
-    id: '1',
-    userName: '田中太郎',
-    subject: '数学',
-    content:
-      'まず図を描いて、既知の辺と角度を確認します。次に三角比（sin, cos, tan）を使って未知の辺を求めます。この問題の場合、直角三角形なので三平方の定理 c² = a² + b² を使うのが最も簡単です。',
-    votes: 12,
-    date: '10/6',
-  },
-  {
-    id: '2',
-    userName: '佐藤花子',
-    subject: '数学',
-    content:
-      '三平方の定理を使います。AC² = 5² + 12² = 25 + 144 = 169、よってAC = 13cmです。',
-    votes: 8,
-    date: '10/6',
-  },
-  {
-    id: '3',
-    userName: '山田次郎',
-    subject: '英語',
-    content:
-      '受動態から能動態への変換は、主語と目的語を入れ替えて、動詞を能動態に戻します。Many students read the book. となります。',
-    votes: 15,
-    date: '10/5',
-  },
-  {
-    id: '4',
-    userName: '鈴木美咲',
-    subject: '物理',
-    content: 'ニュートンの運動方程式 F = ma を使います。a = F/m = 10N / 2kg = 5m/s² です。',
-    votes: 10,
-    date: '10/4',
-  },
-  {
-    id: '5',
-    userName: '高橋健',
-    subject: '化学',
-    content: 'メタンの分子量は16なので1molです。化学反応式より1molのCO₂が生成されます。CO₂の分子量は44なので44gです。',
-    votes: 7,
-    date: '10/3',
-  },
+    { id: 'a1', userName: '田中', subject: '数学', content: '頂点の座標は(-1, 0)ですね！平方完成が基本です。', votes: 15, date: '10/18' },
+    { id: 'a2', userName: '山本', subject: '数学', content: '判別式Dを使う方法もありますが、この形なら平方完成が一番早いです。', votes: 8, date: '10/18' },
 ];
 
+// ★ 修正5: mockSessionsを数値ベースのデータ形式で再定義し、グラフ推移に十分なデータを確保
 export const mockSessions: Session[] = [
-  { id: '1', subject: '数学', time: '14:00 - 16:30', duration: '2h 30m', pages: 12, date: '10/4' },
-  { id: '2', subject: '英語', time: '09:00 - 10:30', duration: '1h 30m', pages: 8, date: '10/4' },
-  { id: '3', subject: '物理', time: '19:00 - 20:15', duration: '1h 15m', pages: 6, date: '10/3' },
-  { id: '4', subject: '化学', time: '15:30 - 17:00', duration: '1h 30m', pages: 10, date: '10/3' },
-  { id: '5', subject: '数学', time: '10:00 - 12:30', duration: '2h 30m', pages: 15, date: '10/2' },
-];
+    // 10/18 (本日) - 105分, 20ページ
+    { id: 's1', subject: '数学', durationMin: 60, secondsRemainder: 0, pages: 12, date: '10/18' },
+    { id: 's2', subject: '英語', durationMin: 45, secondsRemainder: 30, pages: 8, date: '10/18' },
+    
+    // 10/17 - 140分, 23ページ
+    { id: 's3', subject: '理科', durationMin: 30, secondsRemainder: 0, pages: 5, date: '10/17' },
+    { id: 's4', subject: '数学', durationMin: 90, secondsRemainder: 0, pages: 15, date: '10/17' },
+    { id: 's5', subject: '国語', durationMin: 20, secondsRemainder: 50, pages: 3, date: '10/17' },
+    
+    // 10/16 - 125分, 24ページ
+    { id: 's6', subject: '社会', durationMin: 55, secondsRemainder: 0, pages: 10, date: '10/16' },
+    { id: 's7', subject: '英語', durationMin: 70, secondsRemainder: 0, pages: 14, date: '10/16' },
 
-export const weeklyData: ReportData[] = [
-  { date: '10/28', duration: 120, pages: 15 },
-  { date: '10/29', duration: 90, pages: 10 },
-  { date: '10/30', duration: 150, pages: 18 },
-  { date: '10/31', duration: 60, pages: 8 },
-  { date: '11/1', duration: 180, pages: 22 },
-  { date: '11/2', duration: 100, pages: 12 },
-  { date: '11/3', duration: 140, pages: 16 },
-];
+    // 10/15 - 160分, 32ページ
+    { id: 's8', subject: '数学', durationMin: 120, secondsRemainder: 0, pages: 25, date: '10/15' },
+    { id: 's9', subject: '理科', durationMin: 40, secondsRemainder: 0, pages: 7, date: '10/15' },
 
-export const monthlyData: ReportData[] = [
-  { date: '第1週', duration: 450, pages: 55 },
-  { date: '第2週', duration: 520, pages: 62 },
-  { date: '第3週', duration: 380, pages: 48 },
-  { date: '第4週', duration: 600, pages: 70 },
-];
+    // 10/14 - 30分, 6ページ
+    { id: 's10', subject: '社会', durationMin: 30, secondsRemainder: 0, pages: 6, date: '10/14' },
 
-export const subjectData: SubjectBreakdown[] = [
-  { subject: '数学', duration: 450, percentage: 35 },
-  { subject: '英語', duration: 300, percentage: 23 },
-  { subject: '物理', duration: 250, percentage: 19 },
-  { subject: '化学', duration: 200, percentage: 15 },
-  { subject: 'その他', duration: 100, percentage: 8 },
+    // 10/13 - 60分, 10ページ
+    { id: 's11', subject: '数学', durationMin: 60, secondsRemainder: 0, pages: 10, date: '10/13' },
+    
+    // 10/12 - 45分, 9ページ (7日前 - グラフの始点)
+    { id: 's12', subject: '英語', durationMin: 45, secondsRemainder: 0, pages: 9, date: '10/12' },
 ];
 
 export const mockMemos: Memo[] = [
-  {
-    id: 'm1',
-    text: '三平方の定理の証明はピタゴラスの時代から論争があった。公式だけでなく、この背景も理解しておくこと。',
-    subject: '数学',
-    date: '2024/10/14',
-    tags: ['定理', '背景知識'],
-  },
-  {
-    id: 'm2',
-    text: '受動態の時、by以下の動作主が省略されるのは「不明確」「一般の人々」「重要でない」のいずれかの場合。',
-    subject: '英語',
-    date: '2024/10/12',
-    tags: ['文法', '省略'],
-  },
-  {
-    id: 'm3',
-    text: 'F=ma の適用時、加速度と力の向きを一致させるのが重要。力を分解して考える。',
-    subject: '物理',
-    date: '2024/10/10',
-    tags: ['運動方程式', '注意点'],
-  },
-  {
-    id: 'm4',
-    text: 'モル計算では、原子量/分子量の単位がg/molであることを忘れないこと。単位を追うことがミスを防ぐ。',
-    subject: '化学',
-    date: '2024/10/09',
-    tags: ['モル', '計算'],
-  },
+    // ★ 修正6: text を content に変更し、imageUriを追加
+    { id: 'm1', content: '三平方の定理: a² + b² = c²。斜辺はc!', subject: '数学', tags: ['#公式', '#重要'], date: '2024/10/15', imageUri: null },
+    { id: 'm2', content: '不定詞はto + 動詞の原形', subject: '英語', tags: ['#文法', '#基本'], date: '2024/10/14', imageUri: null },
+    { id: 'm3', content: '酸化還元反応：酸化数に注意', subject: '化学', tags: ['#モル', '計算'], date: '2024/10/09', imageUri: null },
 ];
+
+// ... (省略: weeklyData, subjectData) ...
 
 // ====================================================================
 // 3. ユーティリティ & アイコン
 // ====================================================================
 
-// ★ 修正: style/globalからインポートし、stylesという名前で再エクスポート
-import { Colors, globalStyles } from '../styles/global';
+// ★ 修正7: style/globalからインポートし、stylesという名前で再エクスポート
+import { Colors as GlobalColors, globalStyles } from '../styles/global';
 
 export const styles = globalStyles;
-export { Colors }; // Colorsも再エクスポート
+export const Colors = GlobalColors; // Colorsも再エクスポート
 
 interface IconProps {
     name: keyof typeof iconMap;
@@ -221,48 +151,41 @@ interface IconProps {
 }
 
 const iconMap = {
-  BookOpen: '📚',
-  Clock: '⏰',
-  BarChart3: '📊',
-  Sparkles: '✨',
-  Wand2: '🪄',
-  Upload: '⬆️',
-  ThumbsUp: '👍',
-  ThumbsDown: '👎',
-  Camera: '📷',
-  Play: '▶️',
-  Pause: '⏸️',
-  Square: '⏹️',
-  Calendar: '🗓️',
-  Download: '⬇️',
-  Copy: '📋',
-  Check: '✅',
-  BookMarked: '🔖',
-  Target: '🎯',
-  NotebookText: '🗒️',
+    BookOpen: '📚', Clock: '⏰', BarChart3: '📊', Sparkles: '✨', Wand2: '🪄',
+    Upload: '⬆️', ThumbsUp: '👍', ThumbsDown: '👎', Camera: '📷', Play: '▶️',
+    Pause: '⏸️', Square: '⏹️', Calendar: '🗓️', Download: '⬇️', Copy: '📋',
+    Check: '✅', BookMarked: '🔖', Target: '🎯',
+    NotebookText: '🗒️',
+    // ★ 修正8: RotateCcw を追加
+    RotateCcw: '🔄',
 };
 
 export const Icon: React.FC<IconProps> = ({ name, style }) => {
-  const icon = iconMap[name] || '?';
-  return (
-    <Text style={[{ fontSize: 18, color: Colors.foreground }, style]}>{icon}</Text>
-  );
+    const icon = iconMap[name] || '?';
+    return (
+        <Text style={[{ fontSize: 18, color: Colors.foreground }, style]}>{icon}</Text>
+    );
 };
 
 export const formatDuration = (seconds: number): string => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(
-    2,
-    '0'
-  )}:${String(s).padStart(2, '0')}`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(
+        2,
+        '0'
+    )}:${String(s).padStart(2, '0')}`;
 };
 
-export const formatMinToHourMin = (minutes: number): string => {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}h ${m}m`;
+export const formatMinToHourMin = (minutes: number, secondsRemainder: number = 0): string => {
+    const totalSeconds = minutes * 60 + secondsRemainder;
+    const hours = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+
+    if (hours > 0) {
+        return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
 };
 
 export default {};

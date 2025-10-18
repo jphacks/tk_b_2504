@@ -30,6 +30,8 @@ export const Colors = {
     mutedTranslucent: 'hsl(210, 40%, 96%, 0.5)', // ${Colors.muted}80 相当 (timer.tsx 用)
     greenDark: '#059669',
     greenLight: '#D1FAE5',
+    // ★ 修正: test.tsx で参照されている destructiveLight を追加
+    destructiveLight: 'hsl(0, 84.2%, 60.2%, 0.1)', 
 };
 
 // ====================================================================
@@ -125,7 +127,8 @@ export const globalStyles = StyleSheet.create({
     textMd: { fontSize: FONT_SIZE_BASE * 0.875 },
     textBase: { fontSize: FONT_SIZE_BASE },
     textLg: { fontSize: FONT_SIZE_BASE * 1.125 },
-    text2xl: { fontSize: FONT_SIZE_BASE * 1.5 },
+    // ★ 修正: text2Xl ではなく text2xl (小文字 l) に統一
+    text2xl: { fontSize: FONT_SIZE_BASE * 1.5 }, 
     textBold: { fontWeight: 'bold' },
     textSemiBold: { fontWeight: FONT_WEIGHT_MEDIUM },
 
