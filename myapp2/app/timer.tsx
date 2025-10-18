@@ -1,15 +1,16 @@
 // 学習タイマーコンポーネント
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
+// ★ 修正1: Vibration をインポート
+import { Alert, Text, TextInput, TouchableOpacity, Vibration, View } from 'react-native';
 // @react-navigation/native がインストールされている前提
 import { useFocusEffect } from '@react-navigation/native';
 import {
-  Colors,
-  formatDuration, formatMinToHourMin,
-  Icon,
-  Session,
-  styles
+    Colors,
+    formatDuration, formatMinToHourMin,
+    Icon,
+    Session,
+    styles
 } from './definition';
 
 // Helper function
@@ -41,6 +42,22 @@ interface ManualContentProps {
     Icon: React.FC<any>;
 }
 
+// ★ 修正2: カウントダウン機能用のコンポーネントシグネチャを追加
+interface CountdownContentProps {
+    targetTime: number; // 秒
+    setTargetTime: (seconds: number) => void;
+    countdownRunning: boolean;
+    timeRemaining: number;
+    currentSubject: string;
+    currentPages: string;
+    setCurrentSubject: (text: string) => void;
+    setCurrentPages: (text: string) => void;
+    startCountdown: () => void;
+    stopCountdown: () => void;
+    resetCountdown: () => void;
+}
+
+
 // ====================================================================
 // 外部コンポーネント化 (キーボード閉じ問題を解決)
 // ====================================================================
@@ -57,28 +74,6 @@ const StopwatchContent: React.FC<StopwatchContentProps> = React.memo(({
     resetTimer,
 }) => (
     <View style={styles.contentSection}>
-        <View style={[
-            styles.stopwatchDisplayBox,
-            { backgroundColor: Colors.primaryLight }
-        ]}>
-            <Text style={styles.stopwatchText}>{formatDuration(elapsedTime)}</Text>
-            <View style={styles.flexRow}>
-                <TouchableOpacity
-                    onPress={timerRunning ? stopTimer : startTimer}
-                    style={[styles.flexOne, styles.buttonPrimary, { marginRight: 12 }]}
-                >
-                    <Icon name={timerRunning ? 'Pause' : 'Play'} style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
-                    <Text style={styles.buttonText}>{timerRunning ? '一時停止' : '開始'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={resetTimer}
-                    style={[styles.flexOne, styles.timerButtonDanger]}
-                >
-                    <Icon name="Square" style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
-                    <Text style={styles.buttonText}>終了</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
         <View style={styles.flexRow}>
             <View style={{ flex: 1, marginRight: 10 }}>
                 <Text style={styles.label}>科目</Text>
@@ -98,6 +93,28 @@ const StopwatchContent: React.FC<StopwatchContentProps> = React.memo(({
                     placeholder="0"
                     keyboardType="numeric"
                 />
+            </View>
+        </View>
+        <View style={[
+            styles.stopwatchDisplayBox,
+            { backgroundColor: Colors.primaryLight, marginTop: 16 }
+        ]}>
+            <Text style={styles.stopwatchText}>{formatDuration(elapsedTime)}</Text>
+            <View style={styles.flexRow}>
+                <TouchableOpacity
+                    onPress={timerRunning ? stopTimer : startTimer}
+                    style={[styles.flexOne, styles.buttonPrimary, { marginRight: 12 }]}
+                >
+                    <Icon name={timerRunning ? 'Pause' : 'Play'} style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
+                    <Text style={styles.buttonText}>{timerRunning ? '一時停止' : '開始'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={resetTimer}
+                    style={[styles.flexOne, styles.timerButtonDanger]}
+                >
+                    <Icon name="Square" style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
+                    <Text style={styles.buttonText}>終了/記録</Text>
+                </TouchableOpacity>
             </View>
         </View>
     </View>
@@ -201,36 +218,142 @@ const ManualContent: React.FC<ManualContentProps> = React.memo(({ onSaveManualSe
 });
 
 
+// ★ 修正3: カウントダウン機能のコンポーネントを追加
+const CountdownContent: React.FC<CountdownContentProps> = React.memo(({
+    targetTime,
+    setTargetTime,
+    countdownRunning,
+    timeRemaining,
+    currentSubject,
+    currentPages,
+    setCurrentSubject,
+    setCurrentPages,
+    startCountdown,
+    stopCountdown,
+    resetCountdown,
+}) => {
+    // ユーザー入力 (分) を保持する State
+    const [minutesInput, setMinutesInput] = useState<string>(String(Math.floor(targetTime / 60)));
+
+    useEffect(() => {
+        // targetTimeが外部(ロジック)で変わったら、分数表示も更新
+        setMinutesInput(String(Math.floor(targetTime / 60)));
+    }, [targetTime]);
+
+    const handleMinutesChange = (text: string) => {
+        setMinutesInput(text);
+        const minutes = parseInt(text || '0', 10);
+        // 設定時間(秒)を更新
+        setTargetTime(minutes * 60); 
+    };
+    
+    // 残り時間が10秒を切ったら色を危険色に
+    const timerColor = timeRemaining <= 10 && timeRemaining > 0 ? Colors.destructive : Colors.primary;
+
+    return (
+        <View style={styles.contentSection}>
+            {/* タイマー設定 */}
+            <View style={[styles.flexRow, { justifyContent: 'space-between', marginBottom: 12 }]}>
+                <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={styles.label}>設定時間 (分)</Text>
+                    <TextInput
+                        style={[styles.inputBase, { padding: 8 }]}
+                        value={minutesInput}
+                        onChangeText={handleMinutesChange}
+                        placeholder="例: 25"
+                        keyboardType="numeric"
+                        editable={!countdownRunning}
+                    />
+                </View>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>科目</Text>
+                    <TextInput
+                        style={[styles.inputBase, { padding: 8 }]}
+                        value={currentSubject}
+                        onChangeText={setCurrentSubject}
+                        placeholder="例: 数学"
+                    />
+                </View>
+            </View>
+            <View>
+                <Text style={styles.label}>ページ数</Text>
+                <TextInput
+                    style={[styles.inputBase, { padding: 8, marginBottom: 16 }]}
+                    value={currentPages}
+                    onChangeText={setCurrentPages}
+                    placeholder="0"
+                    keyboardType="numeric"
+                />
+            </View>
+
+            {/* カウントダウン表示 ★ デザイン修正箇所 */}
+            <View style={[
+                styles.stopwatchDisplayBox, 
+                // ★ 修正: StopwatchContentとデザインを統一するため、primaryLightを設定
+                { backgroundColor: Colors.primaryLight } 
+            ]}>
+                <Text style={[styles.stopwatchText, { color: timerColor }]}>{formatDuration(timeRemaining)}</Text>
+                <View style={styles.flexRow}>
+                    <TouchableOpacity
+                        onPress={countdownRunning ? stopCountdown : startCountdown}
+                        disabled={targetTime === 0}
+                        style={[styles.flexOne, styles.buttonPrimary, { marginRight: 12, opacity: targetTime === 0 ? 0.5 : 1 }]}
+                    >
+                        <Icon name={countdownRunning ? 'Pause' : 'Play'} style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
+                        <Text style={styles.buttonText}>{countdownRunning ? '一時停止' : '開始'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={resetCountdown}
+                        style={[styles.flexOne, styles.timerButtonDanger]}
+                    >
+                        <Icon name="Square" style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
+                        {/* ★ 修正: 文字列が長すぎるため「終了」に短縮 */}
+                        <Text style={styles.buttonText}>終了</Text> 
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </View>
+    );
+});
+
+
 // ====================================================================
 // メインコンポーネント (StudyTimer)
 // ====================================================================
 
 const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
-    const [currentTab, setCurrentTab] = useState<'stopwatch' | 'manual'>('stopwatch');
-    const [timerRunning, setTimerRunning] = useState<boolean>(false);
+    // ★ 修正4: タブを 'stopwatch', 'timer', 'manual' に拡張
+    const [currentTab, setCurrentTab] = useState<'stopwatch' | 'timer' | 'manual'>('stopwatch');
+    
+    // ストップウォッチ関連
+    const [swRunning, setSwRunning] = useState<boolean>(false);
     const [elapsedTime, setElapsedTime] = useState<number>(0);
+
+    // カウントダウンタイマー関連
+    const [countdownRunning, setCountdownRunning] = useState<boolean>(false);
+    // 25分(1500秒)を初期値に設定
+    const [targetTime, setTargetTime] = useState<number>(1500); 
+    const [timeRemaining, setTimeRemaining] = useState<number>(1500); 
+
     const timerIntervalRef = useRef<NodeJS.Timeout | number | null>(null);
 
     const [currentSubject, setCurrentSubject] = useState<string>('数学');
     const [currentPages, setCurrentPages] = useState<string>('10');
 
-    // タイマーロジック
-    const startTimer = useCallback(() => {
-        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current as NodeJS.Timeout);
-        timerIntervalRef.current = setInterval(() => {
-            setElapsedTime(prevTime => prevTime + 1);
-        }, 1000);
-        setTimerRunning(true);
-    }, []);
 
-    const stopTimer = useCallback(() => {
+    // 共通のタイマー停止ロジック
+    const stopAllTimers = useCallback(() => {
         if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current as NodeJS.Timeout);
             timerIntervalRef.current = null;
         }
-        setTimerRunning(false);
+        setSwRunning(false);
+        setCountdownRunning(false);
     }, []);
-
+    
+    // ------------------------------------
+    // 💾 セッション保存ロジック
+    // ------------------------------------
     const saveSession = useCallback((durationSeconds: number, pages: string, subject: string) => {
         if (durationSeconds > 0) {
             const durationMin = Math.floor(durationSeconds / 60);
@@ -247,14 +370,27 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
             };
 
             onAddSession(newSession);
-            
-            const formattedTime = formatMinToHourMin(durationMin, secondsRemainder);
-            Alert.alert('学習記録保存', `${subject}の学習時間 ${formattedTime} を記録しました！`);
         }
     }, [onAddSession]);
 
-    // ★ 修正: タイマー終了時（リセット時）にAlertを追加
-    const resetTimer = useCallback(() => {
+
+    // ------------------------------------
+    // 🧠 ストップウォッチ ロジック
+    // ------------------------------------
+    const startStopwatch = useCallback(() => {
+        stopAllTimers(); // 他のタイマーを停止
+        timerIntervalRef.current = setInterval(() => {
+            setElapsedTime(prevTime => prevTime + 1);
+        }, 1000);
+        setSwRunning(true);
+    }, [stopAllTimers]);
+
+    const stopStopwatch = useCallback(() => {
+        stopAllTimers();
+    }, [stopAllTimers]);
+
+    // ★ 修正5: ストップウォッチのリセット/保存ロジック（バイブレーション追加）
+    const resetStopwatch = useCallback(() => {
         if (elapsedTime === 0) {
             Alert.alert('タイマーリセット', '計測時間が0秒のため、記録は保存されませんでした。');
             return;
@@ -275,37 +411,92 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
                     text: '保存して終了',
                     onPress: () => {
                         saveSession(durationSeconds, currentPages, currentSubject);
-                        stopTimer();
+                        stopStopwatch();
                         setElapsedTime(0);
+                        Vibration.vibrate(500); // 💡 保存完了時のバイブレーション
                     },
                     style: 'default',
                 },
             ]
         );
-    }, [elapsedTime, currentPages, currentSubject, stopTimer, saveSession]);
+    }, [elapsedTime, currentPages, currentSubject, stopStopwatch, saveSession]);
+    
+    // ------------------------------------
+    // ⏳ カウントダウンタイマー ロジック
+    // ------------------------------------
+    const startCountdown = useCallback(() => {
+        if (timeRemaining <= 0) {
+             Alert.alert('エラー', 'タイマー時間を設定してください。');
+             return;
+        }
+        stopAllTimers(); // 他のタイマーを停止
+        timerIntervalRef.current = setInterval(() => {
+            setTimeRemaining(prevTime => {
+                if (prevTime <= 1) {
+                    clearInterval(timerIntervalRef.current as NodeJS.Timeout);
+                    setCountdownRunning(false);
+                    
+                    // ★ 修正: 3回振動パターンに変更 [0, 振動1, 待機, 振動2, 待機, 振動3]
+                    Vibration.vibrate([0, 300, 300, 300, 300, 300]); 
+                    
+                    // 時間が来たら自動でセッション保存プロセスへ
+                    const durationSeconds = targetTime;
 
+                    Alert.alert(
+                        '時間です！',
+                        `設定した ${Math.floor(targetTime/60)}分 が経過しました。記録を保存しますか？`,
+                        [
+                            { text: 'キャンセル', style: 'cancel' },
+                            {
+                                text: '保存',
+                                onPress: () => {
+                                    saveSession(durationSeconds, currentPages, currentSubject);
+                                    setTimeRemaining(targetTime); // 次の開始のためにリセット
+                                    Vibration.vibrate(500); // 💡 保存完了時のバイブレーション
+                                },
+                            },
+                        ]
+                    );
+                    return 0;
+                }
+                return prevTime - 1;
+            });
+        }, 1000);
+        setCountdownRunning(true);
+    }, [stopAllTimers, timeRemaining, targetTime, currentPages, currentSubject, saveSession]);
 
-    // 画面フォーカス時にタイマーを再開/停止
-    useFocusEffect(
-        useCallback(() => {
-            if (timerRunning && !timerIntervalRef.current) {
-                startTimer();
-            }
-            return () => stopTimer();
-        }, [timerRunning, startTimer, stopTimer])
-    );
-
-    // アンマウント時にタイマーをクリア
+    const stopCountdown = useCallback(() => {
+        stopAllTimers();
+    }, [stopAllTimers]);
+    
+    // ★ 修正6: カウントダウンのリセットロジック
+    const resetCountdown = useCallback(() => {
+        stopAllTimers();
+        setTimeRemaining(targetTime);
+    }, [stopAllTimers, targetTime]);
+    
+    // targetTime が変更されたら timeRemaining もリセット
     useEffect(() => {
-        return () => stopTimer();
-    }, [stopTimer]);
+        if (!countdownRunning) {
+             setTimeRemaining(targetTime);
+        }
+    }, [targetTime, countdownRunning]);
     
     // 手動入力用の保存関数
     const handleSaveManualSession = useCallback((session: Session) => {
         onAddSession(session);
         const formattedTime = formatMinToHourMin(session.durationMin, session.secondsRemainder); 
         Alert.alert('記録保存', `学習記録を保存しました。\n科目: ${session.subject}, 時間: ${formattedTime}`);
+        Vibration.vibrate(500); // 💡 手動保存時のバイブレーション
     }, [onAddSession]);
+
+    // 画面フォーカス時にタイマーを再開/停止
+    useFocusEffect(
+        useCallback(() => {
+            // フォーカスが外れたときにタイマーを停止 (バックグラウンドでの計測は現状サポートしない)
+            return () => stopAllTimers(); 
+        }, [stopAllTimers])
+    );
 
     // TimeCardの集計値をsessionsから計算
     const todaySessions = sessions.filter(s => s.date === getCurrentDate());
@@ -414,15 +605,22 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
 
             <View style={[styles.card, { padding: 16, marginVertical: 16 }]}>
                 <View style={{ paddingBottom: 12 }}>
-                    <Text style={[styles.textLg, styles.textSemiBold]}>ストップウォッチ</Text>
-                    <Text style={[styles.textMd, styles.textMutedForeground, { marginTop: 2 }]}>学習時間を記録</Text>
+                    <Text style={[styles.textLg, styles.textSemiBold]}>学習時間記録</Text>
+                    <Text style={[styles.textMd, styles.textMutedForeground, { marginTop: 2 }]}>ストップウォッチ/カウントダウン</Text>
                 </View>
 
                 {/* タブナビゲーション */}
+                {/* ★ 修正7: タブに 'timer' を追加 */}
                 <View style={[styles.flexRow, { backgroundColor: Colors.muted, borderRadius: 8, padding: 4, marginBottom: 16 }]}>
                     <TouchableOpacity
                         onPress={() => setCurrentTab('stopwatch')}
                         style={[styles.flexOne, { padding: 8, borderRadius: 8, backgroundColor: currentTab === 'stopwatch' ? Colors.card : Colors.muted, elevation: currentTab === 'stopwatch' ? 2 : 0, alignItems: 'center', justifyContent: 'center' }]}
+                    >
+                        <Text style={styles.textSemiBold}>ストップウォッチ</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => setCurrentTab('timer')}
+                        style={[styles.flexOne, { padding: 8, borderRadius: 8, backgroundColor: currentTab === 'timer' ? Colors.card : Colors.muted, elevation: currentTab === 'timer' ? 2 : 0, alignItems: 'center', justifyContent: 'center' }]}
                     >
                         <Text style={styles.textSemiBold}>タイマー</Text>
                     </TouchableOpacity>
@@ -436,15 +634,29 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
 
                 {currentTab === 'stopwatch' ? (
                     <StopwatchContent
-                        timerRunning={timerRunning}
+                        timerRunning={swRunning}
                         elapsedTime={elapsedTime}
                         currentSubject={currentSubject}
                         currentPages={currentPages}
                         setCurrentSubject={setCurrentSubject}
                         setCurrentPages={setCurrentPages}
-                        startTimer={startTimer}
-                        stopTimer={stopTimer}
-                        resetTimer={resetTimer}
+                        startTimer={startStopwatch}
+                        stopTimer={stopStopwatch}
+                        resetTimer={resetStopwatch}
+                    />
+                ) : currentTab === 'timer' ? ( // ★ 修正8: 'timer' タブのコンテンツ
+                    <CountdownContent
+                        targetTime={targetTime}
+                        setTargetTime={setTargetTime}
+                        countdownRunning={countdownRunning}
+                        timeRemaining={timeRemaining}
+                        currentSubject={currentSubject}
+                        currentPages={currentPages}
+                        setCurrentSubject={setCurrentSubject}
+                        setCurrentPages={setCurrentPages}
+                        startCountdown={startCountdown}
+                        stopCountdown={stopCountdown}
+                        resetCountdown={resetCountdown}
                     />
                 ) : (
                     <ManualContent
