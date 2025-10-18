@@ -1,3 +1,5 @@
+// index.tsx
+
 //「AI学習サポート」アプリの「見た目」と「操作の中心」 を作るための土台
 
 import React, { useCallback, useState } from 'react';
@@ -13,15 +15,19 @@ import QuestionGenerator from './ai_create';
 import StudyMemo from './memo';
 import StudyReport from './report';
 import StudyTimer from './timer';
+// ★ 修正: test.tsx から Test コンポーネントをインポート
+import Test from './test';
 
 // ----------------------------------------------------
 // 1. 定数とナビゲーションデータ
 // ----------------------------------------------------
 
 // ヘッダーに表示するテキストマップ
+// ★ 修正: 'test' のヘッダーテキストを追加
 const headerText: Record<TabName, string> = {
     question: '問題解答アシスタント',
     generate: '類似問題生成',
+    test: 'タイムアタックテスト', 
     timer: '学習時間トラッカー',
     report: '学習レポート',
     memo: '学習メモ帳',
@@ -29,11 +35,13 @@ const headerText: Record<TabName, string> = {
 
 // ナビゲーションバーのアイテムリスト
 const navItems = [
-    { tab: 'question' as TabName, icon: 'BookOpen' as const, label: '問題解答' },
-    { tab: 'generate' as TabName, icon: 'Wand2' as const, label: '問題生成' },
-    { tab: 'timer' as TabName, icon: 'Clock' as const, label: 'タイマー' },
-    { tab: 'report' as TabName, icon: 'BarChart3' as const, label: 'レポート' },
-    { tab: 'memo' as TabName, icon: 'NotebookText' as const, label: 'メモ' },
+    { tab: 'question' as const, icon: 'BookOpen' as const, label: '問題解答' },
+    { tab: 'generate' as const, icon: 'Wand2' as const, label: '問題生成' },
+    // ★ 修正: 'test' タブを 'generate' と 'timer' の間に挿入
+    { tab: 'test' as const, icon: 'Target' as const, label: 'テスト' }, 
+    { tab: 'timer' as const, icon: 'Clock' as const, label: 'タイマー' },
+    { tab: 'report' as const, icon: 'BarChart3' as const, label: 'レポート' },
+    { tab: 'memo' as const, icon: 'NotebookText' as const, label: 'メモ' },
 ];
 
 // --- AppHeader Component ---
@@ -61,8 +69,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({ activeTab }) => {
 
 // --- AppNavigation Component ---
 interface TabButtonProps {
-    // Iconの型を具体的な文字列リテラルに変更し、安全性を高める
-    icon: 'BookOpen' | 'Wand2' | 'Clock' | 'BarChart3' | 'NotebookText';
+    // ★ 修正: Icon nameの型をdefinition.tsxのiconMapのキーのUnion型に変更
+    icon: 'BookOpen' | 'Wand2' | 'Clock' | 'BarChart3' | 'NotebookText' | 'Target' | 'RotateCcw'; 
     label: string;
     tabName: TabName;
     activeTab: TabName;
@@ -95,11 +103,12 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ activeTab, setActiveTab }
                     {navItems.map(item => (
                         <TabButton
                             key={item.tab}
-                            icon={item.icon}
+                            // ★ 修正: 適切な型に修正
+                            icon={item.icon as 'BookOpen' | 'Wand2' | 'Clock' | 'BarChart3' | 'NotebookText' | 'Target' | 'RotateCcw'} 
                             label={item.label}
-                            tabName={item.tab}
+                            tabName={item.tab as TabName} // TabName型にキャスト
                             activeTab={activeTab}
-                            onPress={() => setActiveTab(item.tab)}
+                            onPress={() => setActiveTab(item.tab as TabName)}
                         />
                     ))}
                 </View>
@@ -114,10 +123,8 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ activeTab, setActiveTab }
 
 const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabName>('question');
-    // ★ 学習セッションの状態を追加
     const [sessions, setSessions] = useState<Session[]>(mockSessions);
 
-    // ★ セッション追加ハンドラー
     const onAddSession = useCallback((newSession: Session) => {
         setSessions(prevSessions => [newSession, ...prevSessions]);
     }, []);
@@ -128,15 +135,19 @@ const App: React.FC = () => {
                 return <QuestionAnswer />;
             case 'generate':
                 return <QuestionGenerator />;
+            // ★ 修正: 'test' のレンダリングロジックを追加
+            case 'test': 
+                return <Test />;
             case 'timer':
-                // ★ sessions と onAddSession を渡す
+                // sessions と onAddSession を渡す
                 return <StudyTimer sessions={sessions} onAddSession={onAddSession} />;
             case 'report':
-                // ★ sessions を渡す
+                // sessions を渡す
                 return <StudyReport sessions={sessions} />;
             case 'memo':
                 return <StudyMemo />;
             default:
+                // ★ 修正: activeTabの型が保証されているため、defaultは通常発生しないが念のため
                 return <Text>コンテンツが見つかりません</Text>;
         }
     };
