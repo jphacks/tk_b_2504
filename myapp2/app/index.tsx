@@ -1,11 +1,11 @@
 //「AI学習サポート」アプリの「見た目」と「操作の中心」 を作るための土台
 
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // 共通ファイルからインポート
-import { Colors, Icon, styles, TabName } from './definition';
+import { Colors, Icon, mockSessions, Session, styles, TabName } from './definition';
 
 // 各画面コンポーネントをインポート
 import QuestionAnswer from './ai_anser';
@@ -114,6 +114,13 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ activeTab, setActiveTab }
 
 const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabName>('question');
+    // ★ 学習セッションの状態を追加
+    const [sessions, setSessions] = useState<Session[]>(mockSessions);
+
+    // ★ セッション追加ハンドラー
+    const onAddSession = useCallback((newSession: Session) => {
+        setSessions(prevSessions => [newSession, ...prevSessions]);
+    }, []);
 
     const renderContent = () => {
         switch (activeTab) {
@@ -122,9 +129,11 @@ const App: React.FC = () => {
             case 'generate':
                 return <QuestionGenerator />;
             case 'timer':
-                return <StudyTimer />;
+                // ★ sessions と onAddSession を渡す
+                return <StudyTimer sessions={sessions} onAddSession={onAddSession} />;
             case 'report':
-                return <StudyReport />;
+                // ★ sessions を渡す
+                return <StudyReport sessions={sessions} />;
             case 'memo':
                 return <StudyMemo />;
             default:
