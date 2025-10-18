@@ -1,10 +1,8 @@
 // 学習タイマーコンポーネント
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-// ★ 修正1: Vibration をインポート
-import { Alert, Text, TextInput, TouchableOpacity, Vibration, View } from 'react-native';
-// @react-navigation/native がインストールされている前提
 import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Text, TextInput, TouchableOpacity, Vibration, View } from 'react-native';
 import {
     Colors,
     formatDuration, formatMinToHourMin,
@@ -42,11 +40,12 @@ interface ManualContentProps {
     Icon: React.FC<any>;
 }
 
-// ★ 修正2: カウントダウン機能用のコンポーネントシグネチャを追加
+// ★ 修正後のシグネチャ: isPausedを追加
 interface CountdownContentProps {
     targetTime: number; // 秒
     setTargetTime: (seconds: number) => void;
     countdownRunning: boolean;
+    isPaused: boolean; // ★ 追加: 一時停止状態
     timeRemaining: number;
     currentSubject: string;
     currentPages: string;
@@ -59,7 +58,7 @@ interface CountdownContentProps {
 
 
 // ====================================================================
-// 外部コンポーネント化 (キーボード閉じ問題を解決)
+// 外部コンポーネント化
 // ====================================================================
 
 const StopwatchContent: React.FC<StopwatchContentProps> = React.memo(({
@@ -218,11 +217,11 @@ const ManualContent: React.FC<ManualContentProps> = React.memo(({ onSaveManualSe
 });
 
 
-// ★ 修正3: カウントダウン機能のコンポーネントを追加
 const CountdownContent: React.FC<CountdownContentProps> = React.memo(({
     targetTime,
     setTargetTime,
     countdownRunning,
+    isPaused, 
     timeRemaining,
     currentSubject,
     currentPages,
@@ -232,22 +231,18 @@ const CountdownContent: React.FC<CountdownContentProps> = React.memo(({
     stopCountdown,
     resetCountdown,
 }) => {
-    // ユーザー入力 (分) を保持する State
     const [minutesInput, setMinutesInput] = useState<string>(String(Math.floor(targetTime / 60)));
 
     useEffect(() => {
-        // targetTimeが外部(ロジック)で変わったら、分数表示も更新
         setMinutesInput(String(Math.floor(targetTime / 60)));
     }, [targetTime]);
 
     const handleMinutesChange = (text: string) => {
         setMinutesInput(text);
         const minutes = parseInt(text || '0', 10);
-        // 設定時間(秒)を更新
         setTargetTime(minutes * 60); 
     };
     
-    // 残り時間が10秒を切ったら色を危険色に
     const timerColor = timeRemaining <= 10 && timeRemaining > 0 ? Colors.destructive : Colors.primary;
 
     return (
@@ -262,7 +257,7 @@ const CountdownContent: React.FC<CountdownContentProps> = React.memo(({
                         onChangeText={handleMinutesChange}
                         placeholder="例: 25"
                         keyboardType="numeric"
-                        editable={!countdownRunning}
+                        editable={!countdownRunning && !isPaused} // ★ 修正: 実行中または一時停止中は編集不可
                     />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -286,28 +281,33 @@ const CountdownContent: React.FC<CountdownContentProps> = React.memo(({
                 />
             </View>
 
-            {/* カウントダウン表示 ★ デザイン修正箇所 */}
+            {/* カウントダウン表示 */}
             <View style={[
                 styles.stopwatchDisplayBox, 
-                // ★ 修正: StopwatchContentとデザインを統一するため、primaryLightを設定
                 { backgroundColor: Colors.primaryLight } 
             ]}>
                 <Text style={[styles.stopwatchText, { color: timerColor }]}>{formatDuration(timeRemaining)}</Text>
                 <View style={styles.flexRow}>
+                    {/* ★ 修正: 一時停止/再開ボタンのロジック */}
                     <TouchableOpacity
                         onPress={countdownRunning ? stopCountdown : startCountdown}
-                        disabled={targetTime === 0}
-                        style={[styles.flexOne, styles.buttonPrimary, { marginRight: 12, opacity: targetTime === 0 ? 0.5 : 1 }]}
+                        disabled={targetTime === 0 && !isPaused} // Paused状態ならtargetTime=0でも再開可能
+                        style={[styles.flexOne, styles.buttonPrimary, { marginRight: 12, opacity: (targetTime === 0 && !isPaused) ? 0.5 : 1 }]}
                     >
-                        <Icon name={countdownRunning ? 'Pause' : 'Play'} style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
-                        <Text style={styles.buttonText}>{countdownRunning ? '一時停止' : '開始'}</Text>
+                        <Icon 
+                            name={countdownRunning ? 'Pause' : 'Play'} 
+                            style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} 
+                        />
+                        <Text style={styles.buttonText}>
+                            {countdownRunning ? '一時停止' : isPaused ? '再開' : '開始'}
+                        </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={resetCountdown}
-                        style={[styles.flexOne, styles.timerButtonDanger]}
+                        disabled={!countdownRunning && !isPaused} // ★ 修正: 実行中または一時停止中の時のみリセット可能
+                        style={[styles.flexOne, styles.timerButtonDanger, { opacity: (!countdownRunning && !isPaused) ? 0.5 : 1 }]}
                     >
                         <Icon name="Square" style={[styles.textSm, styles.textWhite, { marginRight: 8 }]} />
-                        {/* ★ 修正: 文字列が長すぎるため「終了」に短縮 */}
                         <Text style={styles.buttonText}>終了</Text> 
                     </TouchableOpacity>
                 </View>
@@ -322,7 +322,6 @@ const CountdownContent: React.FC<CountdownContentProps> = React.memo(({
 // ====================================================================
 
 const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
-    // ★ 修正4: タブを 'stopwatch', 'timer', 'manual' に拡張
     const [currentTab, setCurrentTab] = useState<'stopwatch' | 'timer' | 'manual'>('stopwatch');
     
     // ストップウォッチ関連
@@ -331,7 +330,7 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
 
     // カウントダウンタイマー関連
     const [countdownRunning, setCountdownRunning] = useState<boolean>(false);
-    // 25分(1500秒)を初期値に設定
+    const [isPaused, setIsPaused] = useState<boolean>(false); // ★ 修正: 一時停止状態を追加
     const [targetTime, setTargetTime] = useState<number>(1500); 
     const [timeRemaining, setTimeRemaining] = useState<number>(1500); 
 
@@ -352,19 +351,21 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
     }, []);
     
     // ------------------------------------
-    // 💾 セッション保存ロジック
+    // 💾 セッション保存ロジック (★ 修正: 秒単位の記録に対応)
     // ------------------------------------
     const saveSession = useCallback((durationSeconds: number, pages: string, subject: string) => {
         if (durationSeconds > 0) {
+            // ★ 修正: 秒数を分と残り秒数に正確に分解
             const durationMin = Math.floor(durationSeconds / 60);
             const secondsRemainder = durationSeconds % 60; 
+            
             const pagesNum = parseInt(pages || '0', 10);
 
             const newSession: Session = {
                 id: Date.now().toString(),
                 subject: subject || 'その他',
                 durationMin: durationMin,
-                secondsRemainder: secondsRemainder, 
+                secondsRemainder: secondsRemainder, // ★ 秒数を保持
                 pages: pagesNum,
                 date: getCurrentDate(),
             };
@@ -378,7 +379,7 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
     // 🧠 ストップウォッチ ロジック
     // ------------------------------------
     const startStopwatch = useCallback(() => {
-        stopAllTimers(); // 他のタイマーを停止
+        stopAllTimers(); 
         timerIntervalRef.current = setInterval(() => {
             setElapsedTime(prevTime => prevTime + 1);
         }, 1000);
@@ -389,7 +390,6 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
         stopAllTimers();
     }, [stopAllTimers]);
 
-    // ★ 修正5: ストップウォッチのリセット/保存ロジック（バイブレーション追加）
     const resetStopwatch = useCallback(() => {
         if (elapsedTime === 0) {
             Alert.alert('タイマーリセット', '計測時間が0秒のため、記録は保存されませんでした。');
@@ -413,7 +413,7 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
                         saveSession(durationSeconds, currentPages, currentSubject);
                         stopStopwatch();
                         setElapsedTime(0);
-                        Vibration.vibrate(500); // 💡 保存完了時のバイブレーション
+                        Vibration.vibrate(500); 
                     },
                     style: 'default',
                 },
@@ -429,17 +429,19 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
              Alert.alert('エラー', 'タイマー時間を設定してください。');
              return;
         }
-        stopAllTimers(); // 他のタイマーを停止
+        stopAllTimers(); 
+        
+        setIsPaused(false); // ★ 修正: 再開時には一時停止状態を解除
+        
         timerIntervalRef.current = setInterval(() => {
             setTimeRemaining(prevTime => {
                 if (prevTime <= 1) {
                     clearInterval(timerIntervalRef.current as NodeJS.Timeout);
                     setCountdownRunning(false);
+                    setIsPaused(false); 
                     
-                    // ★ 修正: 3回振動パターンに変更 [0, 振動1, 待機, 振動2, 待機, 振動3]
                     Vibration.vibrate([0, 300, 300, 300, 300, 300]); 
                     
-                    // 時間が来たら自動でセッション保存プロセスへ
                     const durationSeconds = targetTime;
 
                     Alert.alert(
@@ -451,8 +453,8 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
                                 text: '保存',
                                 onPress: () => {
                                     saveSession(durationSeconds, currentPages, currentSubject);
-                                    setTimeRemaining(targetTime); // 次の開始のためにリセット
-                                    Vibration.vibrate(500); // 💡 保存完了時のバイブレーション
+                                    setTimeRemaining(targetTime); 
+                                    Vibration.vibrate(500); 
                                 },
                             },
                         ]
@@ -466,46 +468,47 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
     }, [stopAllTimers, timeRemaining, targetTime, currentPages, currentSubject, saveSession]);
 
     const stopCountdown = useCallback(() => {
+        if (!countdownRunning) return;
         stopAllTimers();
-    }, [stopAllTimers]);
+        setIsPaused(true); // ★ 修正: 一時停止状態を true にする
+    }, [stopAllTimers, countdownRunning]);
     
-    // ★ 修正6: カウントダウンのリセットロジック
     const resetCountdown = useCallback(() => {
         stopAllTimers();
+        setIsPaused(false); // ★ 修正: Paused状態を false にする
         setTimeRemaining(targetTime);
     }, [stopAllTimers, targetTime]);
     
-    // targetTime が変更されたら timeRemaining もリセット
     useEffect(() => {
-        if (!countdownRunning) {
+        if (!countdownRunning && !isPaused) { // ★ 修正: 実行中でも一時停止中でもない場合のみリセット
              setTimeRemaining(targetTime);
         }
-    }, [targetTime, countdownRunning]);
+    }, [targetTime, countdownRunning, isPaused]);
     
     // 手動入力用の保存関数
     const handleSaveManualSession = useCallback((session: Session) => {
         onAddSession(session);
         const formattedTime = formatMinToHourMin(session.durationMin, session.secondsRemainder); 
         Alert.alert('記録保存', `学習記録を保存しました。\n科目: ${session.subject}, 時間: ${formattedTime}`);
-        Vibration.vibrate(500); // 💡 手動保存時のバイブレーション
+        Vibration.vibrate(500); 
     }, [onAddSession]);
 
     // 画面フォーカス時にタイマーを再開/停止
     useFocusEffect(
         useCallback(() => {
-            // フォーカスが外れたときにタイマーを停止 (バックグラウンドでの計測は現状サポートしない)
             return () => stopAllTimers(); 
         }, [stopAllTimers])
     );
 
     // TimeCardの集計値をsessionsから計算
     const todaySessions = sessions.filter(s => s.date === getCurrentDate());
-    const todayDuration = todaySessions.reduce((sum, s) => sum + s.durationMin, 0);
+    const todayDuration = todaySessions.reduce((sum, s) => sum + s.durationMin + Math.floor(s.secondsRemainder / 60), 0);
     const todayPages = todaySessions.reduce((sum, s) => sum + s.pages, 0);
     const recentSessions = sessions.slice(0, 7);
     const recentDuration = recentSessions.reduce((sum, s) => sum + s.durationMin, 0);
     const recentSessionsCount = recentSessions.length;
 
+    // ... (TimeCard Component, RecentSessionsCard Component のロジックは省略 - timer.tsxのままでOK) ...
     // --- TimeCard Component ---
     interface TimeCardProps {
         title: string;
@@ -514,7 +517,6 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
         isPrimary: boolean;
     }
     const TimeCard: React.FC<TimeCardProps> = ({ title, duration, detail, isPrimary }) => {
-        // durationが 'Hh MMm' 形式または 'Xs' 形式であることを期待
         const isSeconds = duration.endsWith('s');
         let displayH = '0';
         let displayM = '0';
@@ -525,10 +527,10 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
             unit = 's';
         } else {
             const parts = duration.split('h ');
-            if (parts.length > 1) { // Hh MMm 形式
+            if (parts.length > 1) { 
                 displayH = parts[0];
                 displayM = parts[1].replace('m', '');
-            } else { // MMm 形式
+            } else { 
                 displayM = duration.replace('m', '');
             }
         }
@@ -584,6 +586,8 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
             </View>
         </View>
     );
+    // ... (省略) ...
+
 
     return (
         <View style={{ flex: 1, paddingVertical: 10 }}>
@@ -610,7 +614,6 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
                 </View>
 
                 {/* タブナビゲーション */}
-                {/* ★ 修正7: タブに 'timer' を追加 */}
                 <View style={[styles.flexRow, { backgroundColor: Colors.muted, borderRadius: 8, padding: 4, marginBottom: 16 }]}>
                     <TouchableOpacity
                         onPress={() => setCurrentTab('stopwatch')}
@@ -644,11 +647,12 @@ const StudyTimer: React.FC<StudyTimerProps> = ({ sessions, onAddSession }) => {
                         stopTimer={stopStopwatch}
                         resetTimer={resetStopwatch}
                     />
-                ) : currentTab === 'timer' ? ( // ★ 修正8: 'timer' タブのコンテンツ
+                ) : currentTab === 'timer' ? (
                     <CountdownContent
                         targetTime={targetTime}
                         setTargetTime={setTargetTime}
                         countdownRunning={countdownRunning}
+                        isPaused={isPaused} 
                         timeRemaining={timeRemaining}
                         currentSubject={currentSubject}
                         currentPages={currentPages}
