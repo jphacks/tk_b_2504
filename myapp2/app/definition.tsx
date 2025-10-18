@@ -34,11 +34,12 @@ export interface Answer {
     date: string;
 }
 
+// ★ Session 型を修正: durationMin と secondsRemainder を追加
 export interface Session {
     id: string;
     subject: string;
-    time: string;
-    duration: string;
+    durationMin: number;    // 分単位の学習時間
+    secondsRemainder: number; // 60秒未満の残り秒数
     pages: number;
     date: string;
 }
@@ -109,14 +110,16 @@ export const mockAnswers: Answer[] = [
     { id: '5', userName: '高橋健', subject: '化学', content: 'メタンの分子量は16なので1molです。化学反応式より1molのCO₂が生成されます。CO₂の分子量は44なので44gです。', votes: 7, date: '10/3' }
 ];
 
+// ★ mockSessionsの形式を新しいSession型に合わせる
 export const mockSessions: Session[] = [
-    { id: '1', subject: '数学', time: '14:00 - 16:30', duration: '2h 30m', pages: 12, date: '10/4' },
-    { id: '2', subject: '英語', time: '09:00 - 10:30', duration: '1h 30m', pages: 8, date: '10/4' },
-    { id: '3', subject: '物理', time: '19:00 - 20:15', duration: '1h 15m', pages: 6, date: '10/3' },
-    { id: '4', subject: '化学', time: '15:30 - 17:00', duration: '1h 30m', pages: 10, date: '10/3' },
-    { id: '5', subject: '数学', time: '10:00 - 12:30', duration: '2h 30m', pages: 15, date: '10/2' },
+    { id: '1', subject: '数学', durationMin: 150, secondsRemainder: 0, pages: 12, date: '10/4' }, // 2h 30m
+    { id: '2', subject: '英語', durationMin: 90, secondsRemainder: 0, pages: 8, date: '10/4' },   // 1h 30m
+    { id: '3', subject: '物理', durationMin: 75, secondsRemainder: 0, pages: 6, date: '10/3' },   // 1h 15m
+    { id: '4', subject: '化学', durationMin: 90, secondsRemainder: 0, pages: 10, date: '10/3' },  // 1h 30m
+    { id: '5', subject: '数学', durationMin: 150, secondsRemainder: 0, pages: 15, date: '10/2' }, // 2h 30m
 ];
 
+// NOTE: report.tsxでsessionsを使用するため、以下のモックは使用されなくなりますが、他のコンポーネント（例：ChartCard）のスタブ表示のために型定義として残します。
 export const weeklyData: ReportData[] = [
     { date: '10/28', duration: 120, pages: 15 },
     { date: '10/29', duration: 90, pages: 10 },
@@ -154,11 +157,10 @@ export const mockMemos: Memo[] = [
 // 3. ユーティリティ & アイコン
 // ====================================================================
 
-// ★ 修正: style/globalからインポートし、stylesという名前で再エクスポート
 import { Colors, globalStyles } from '../styles/global';
 
 export const styles = globalStyles;
-export { Colors }; // Colorsも再エクスポート
+export { Colors };
 
 interface IconProps {
     name: keyof typeof iconMap;
@@ -183,10 +185,24 @@ export const formatDuration = (seconds: number): string => {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-export const formatMinToHourMin = (minutes: number): string => {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return `${h}h ${m}m`;
+// ★ 修正: secondsRemainderを受け取るように変更
+export const formatMinToHourMin = (minutes: number, secondsRemainder: number = 0): string => {
+    const totalMinutes = minutes + Math.floor(secondsRemainder / 60);
+    const m = totalMinutes % 60;
+    const h = Math.floor(totalMinutes / 60);
+    const s = secondsRemainder % 60;
+
+    let result = '';
+    if (h > 0) {
+        result += `${h}h `;
+    }
+    result += `${m}m`;
+
+    if (h === 0 && m === 0 && s > 0) {
+        return `${s}s`;
+    }
+
+    return result.trim();
 };
 
 export default {};
