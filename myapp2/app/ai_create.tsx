@@ -11,7 +11,7 @@ import {
 } from './definition';
 
 // ✅ Gemini API設定（高精度モデルを使用）
-const GEMINI_API_KEY = "AIzaSyAdUTXLuQLHNQBJVuxebIoNpKkMGyvav9I"; // APIキーは安全に管理してください
+const GEMINI_API_KEY = "AIzaSyAgUl9pHBs6sWKFhn9EGfhDnSbx7CFKVv8"; // APIキーは安全に管理してください
 const GEMINI_MODEL = "models/gemini-2.5-pro"; // 推奨モデルに変更
 
 // ✅ 修正点: コンポーネントを外に定義
