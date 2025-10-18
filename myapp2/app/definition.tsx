@@ -117,7 +117,8 @@ export const mockSessions: Session[] = [
     { id: 's9', subject: '理科', durationMin: 40, secondsRemainder: 0, pages: 7, date: '10/15' },
 
     // 10/14 - 30分, 6ページ
-    { id: 's10', subject: '社会', durationMin: 30, secondsRemainder: 0, pages: 6, date: '10/14' },
+    // ★ 修正 (120行目): pages の値を数値 6 に修正
+    { id: 's10', subject: '社会', durationMin: 30, secondsRemainder: 0, pages: 6, date: '10/14' }, 
 
     // 10/13 - 60分, 10ページ
     { id: 's11', subject: '数学', durationMin: 60, secondsRemainder: 0, pages: 10, date: '10/13' },
@@ -158,6 +159,8 @@ const iconMap = {
     NotebookText: '🗒️',
     // ★ 修正8: RotateCcw を追加
     RotateCcw: '🔄',
+    // ★ 修正9: Settings を追加
+    Settings: '⚙️', 
 };
 
 export const Icon: React.FC<IconProps> = ({ name, style }) => {
@@ -171,10 +174,15 @@ export const formatDuration = (seconds: number): string => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(
-        2,
-        '0'
-    )}:${String(s).padStart(2, '0')}`;
+
+    // ★ 修正10: 01:00 のように時間がない場合は分と秒のみを返す
+    if (h > 0) {
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(
+            2,
+            '0'
+        )}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
 export const formatMinToHourMin = (minutes: number, secondsRemainder: number = 0): string => {
