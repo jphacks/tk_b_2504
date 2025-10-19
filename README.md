@@ -1,4 +1,4 @@
-#Aicademy（アイカデミー)
+# Aicademy（アイカデミー)
 今までにない生成AIを用いた勉強記録＋解答解説アプリ
 [![IMAGE ALT TEXT HERE](https://jphacks.com/wp-content/uploads/2025/05/JPHACKS2025_ogp.jpg)](https://www.youtube.com/watch?v=lA9EluZugD8)
 
