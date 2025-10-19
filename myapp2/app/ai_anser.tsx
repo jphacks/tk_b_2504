@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -9,12 +9,14 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Colors, Icon, styles } from './definition';
 
 // 🔸 Gemini API設定
 const GEMINI_API_KEY = 'AIzaSyAgUl9pHBs6sWKFhn9EGfhDnSbx7CFKVv8';
 const GEMINI_MODEL = 'models/gemini-2.5-pro';
+const STORAGE_KEY = '@ai_question_history';
 
 // ======================================
 // 🧩 型定義
@@ -77,129 +79,32 @@ const QuestionInput = React.memo(
 );
 
 // ======================================
-// 🗨 コメント関連
-// ======================================
-const CommentItem: React.FC<{
-  comment: Comment;
-  onReply: (text: string, parentId: string) => void;
-  onLike: (id: string) => void;
-  onDelete: (id: string) => void;
-}> = ({ comment, onReply, onLike, onDelete }) => {
-  const [replyText, setReplyText] = useState('');
-  return (
-    <View style={{ marginVertical: 8, paddingLeft: comment.parentId ? 20 : 0 }}>
-      <Text style={{ fontWeight: 'bold' }}>💬 {comment.text}</Text>
-      <Text style={{ color: Colors.mutedForeground, fontSize: 12 }}>{comment.createdAt}</Text>
-
-      <View style={{ flexDirection: 'row', marginTop: 4 }}>
-        <TouchableOpacity onPress={() => onLike(comment.id)} style={{ marginRight: 10 }}>
-          <Text>❤️ {comment.likes}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => onDelete(comment.id)} style={{ marginRight: 10 }}>
-          <Text style={{ color: 'red' }}>削除</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 返信フォーム */}
-      <View style={{ flexDirection: 'row', marginTop: 6 }}>
-        <TextInput
-          placeholder="返信を書く..."
-          value={replyText}
-          onChangeText={setReplyText}
-          style={{
-            borderWidth: 1,
-            borderColor: Colors.border,
-            flex: 1,
-            padding: 4,
-            borderRadius: 4,
-          }}
-        />
-        <TouchableOpacity
-          onPress={() => {
-            onReply(replyText, comment.id);
-            setReplyText('');
-          }}
-          style={{
-            marginLeft: 8,
-            backgroundColor: Colors.primary,
-            borderRadius: 4,
-            paddingVertical: 4,
-            paddingHorizontal: 8,
-          }}
-        >
-          <Text style={{ color: 'white' }}>返信</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ネストされた返信 */}
-      {comment.replies.length > 0 && (
-        <View style={{ marginTop: 8 }}>
-          {comment.replies.map((r) => (
-            <CommentItem
-              key={r.id}
-              comment={r}
-              onReply={onReply}
-              onLike={onLike}
-              onDelete={onDelete}
-            />
-          ))}
-        </View>
-      )}
-    </View>
-  );
-};
-
-// ======================================
-// 💬 コメントセクション（履歴専用）
+// 💬 コメントセクション
 // ======================================
 const CommentSection: React.FC<{ answerId: string }> = ({ answerId }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
 
-  const handleAddComment = (text: string, parentId?: string) => {
+  const handleAddComment = (text: string) => {
     if (!text.trim()) return;
     const newItem: Comment = {
       id: Date.now().toString(),
       answerId,
-      parentId,
       text,
       likes: 0,
       replies: [],
       createdAt: new Date().toLocaleString('ja-JP'),
     };
-    setComments((prev) => {
-      if (parentId) {
-        return prev.map((c) =>
-          c.id === parentId ? { ...c, replies: [...c.replies, newItem] } : c
-        );
-      } else return [...prev, newItem];
-    });
-  };
-
-  const handleLike = (id: string) => {
-    const update = (list: Comment[]): Comment[] =>
-      list.map((c) =>
-        c.id === id
-          ? { ...c, likes: c.likes + 1 }
-          : { ...c, replies: update(c.replies) }
-      );
-    setComments((prev) => update(prev));
-  };
-
-  const handleDelete = (id: string) => {
-    const remove = (list: Comment[]): Comment[] =>
-      list.filter((c) => c.id !== id).map((c) => ({ ...c, replies: remove(c.replies) }));
-    setComments((prev) => remove(prev));
+    setComments((prev) => [...prev, newItem]);
+    setNewComment('');
   };
 
   return (
-    <View style={{ marginTop: 12, borderTopWidth: 1, borderColor: Colors.border, paddingTop: 10 }}>
-      <Text style={{ fontWeight: 'bold', fontSize: 15, marginBottom: 6 }}>💬 コメント</Text>
-
-      {/* 入力欄 */}
-      <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+    <View style={{ marginTop: 10 }}>
+      <Text style={{ fontWeight: 'bold' }}>💬 コメント</Text>
+      <View style={{ flexDirection: 'row', marginTop: 6 }}>
         <TextInput
-          placeholder="この解説へのコメントを書く..."
+          placeholder="コメントを書く..."
           value={newComment}
           onChangeText={setNewComment}
           style={{
@@ -211,10 +116,7 @@ const CommentSection: React.FC<{ answerId: string }> = ({ answerId }) => {
           }}
         />
         <TouchableOpacity
-          onPress={() => {
-            handleAddComment(newComment);
-            setNewComment('');
-          }}
+          onPress={() => handleAddComment(newComment)}
           style={{
             marginLeft: 8,
             backgroundColor: Colors.primary,
@@ -227,28 +129,23 @@ const CommentSection: React.FC<{ answerId: string }> = ({ answerId }) => {
         </TouchableOpacity>
       </View>
 
-      {/* コメント一覧 */}
       {comments.length === 0 ? (
-        <Text style={{ color: Colors.mutedForeground }}>まだコメントはありません。</Text>
+        <Text style={{ color: Colors.mutedForeground, marginTop: 4 }}>
+          まだコメントはありません。
+        </Text>
       ) : (
-        comments
-          .filter((c) => !c.parentId)
-          .map((c) => (
-            <CommentItem
-              key={c.id}
-              comment={c}
-              onReply={(text, pid) => handleAddComment(text, pid)}
-              onLike={handleLike}
-              onDelete={handleDelete}
-            />
-          ))
+        comments.map((c) => (
+          <Text key={c.id} style={{ marginTop: 4 }}>
+            💬 {c.text}
+          </Text>
+        ))
       )}
     </View>
   );
 };
 
 // ======================================
-// 📜 履歴タブ（削除機能追加済）
+// 📜 履歴タブ
 // ======================================
 const HistoryTab: React.FC<{
   history: HistoryItem[];
@@ -258,11 +155,12 @@ const HistoryTab: React.FC<{
 }> = ({ history, searchKeyword, setSearchKeyword, onDeleteHistory }) => {
   const filteredHistory = useMemo(() => {
     return history.filter((item) => {
-      const { subject } = extractSubjectAndRange(item.answer);
+      const { subject, range } = extractSubjectAndRange(item.answer);
       const keyword = searchKeyword.trim().toLowerCase();
       if (!keyword) return true;
       return (
         subject.toLowerCase().includes(keyword) ||
+        range.toLowerCase().includes(keyword) ||
         item.question.toLowerCase().includes(keyword)
       );
     });
@@ -271,7 +169,7 @@ const HistoryTab: React.FC<{
   return (
     <ScrollView contentContainerStyle={{ padding: 10 }}>
       <TextInput
-        placeholder="科目名または問題文で検索"
+        placeholder="科目・範囲・問題文で検索"
         value={searchKeyword}
         onChangeText={setSearchKeyword}
         style={{
@@ -301,7 +199,7 @@ const HistoryTab: React.FC<{
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 12, color: Colors.mutedForeground }}>
-                  {item.createdAt}　{subject} {range}
+                  {item.createdAt}　{subject && `${subject}`} {range && `${range}`}
                 </Text>
                 <TouchableOpacity onPress={() => onDeleteHistory(item.id)}>
                   <Text style={{ color: 'red', fontSize: 12 }}>🗑 削除</Text>
@@ -312,9 +210,7 @@ const HistoryTab: React.FC<{
                 問題：{item.question}
               </Text>
 
-              <Text style={{ fontSize: 14, lineHeight: 22, marginBottom: 6 }}>
-                {explanation}
-              </Text>
+              <Text style={{ fontSize: 14, lineHeight: 22 }}>{explanation}</Text>
 
               <CommentSection answerId={item.id} />
             </View>
@@ -334,23 +230,59 @@ const QuestionAnswer: React.FC = () => {
   const [aiAnswer, setAiAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  // 🔸 履歴削除関数
-  const handleDeleteHistory = (id: string) => {
-    Alert.alert('確認', 'この履歴を削除しますか？', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '削除',
-        style: 'destructive',
-        onPress: () => {
-          setHistory((prev) => prev.filter((item) => item.id !== id));
-        },
-      },
-    ]);
+  // ✅ 履歴永続化用
+  const historyRef = useRef<HistoryItem[]>([]);
+  const [, forceUpdate] = useState(0);
+
+  // ✅ 起動時に履歴を読み込む
+  useEffect(() => {
+    (async () => {
+      try {
+        const json = await AsyncStorage.getItem(STORAGE_KEY);
+        if (json) historyRef.current = JSON.parse(json);
+        forceUpdate((n) => n + 1);
+      } catch (e) {
+        console.error('履歴読み込み失敗', e);
+      }
+    })();
+  }, []);
+
+  // ✅ 履歴保存関数
+  const saveHistory = async () => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(historyRef.current));
+    } catch (e) {
+      console.error('履歴保存失敗', e);
+    }
   };
 
+  // ✅ 履歴追加
+  const addHistoryItem = async (item: HistoryItem) => {
+    historyRef.current = [item, ...historyRef.current];
+    await saveHistory();
+    forceUpdate((n) => n + 1);
+  };
+
+  // ✅ 履歴削除
+  const deleteHistoryItem = async (id: string) => {
+    historyRef.current = historyRef.current.filter((item) => item.id !== id);
+    await saveHistory();
+    forceUpdate((n) => n + 1);
+  };
+
+  // ✅ 出力整形
+  const normalizeOutput = (text: string): string => {
+    let cleaned = text.replace(/^はい.*?。/s, '').trim();
+    if (!cleaned.includes('科目：')) cleaned = `科目：不明\n${cleaned}`;
+    if (!cleaned.includes('範囲：')) cleaned = `範囲：不明\n${cleaned}`;
+    if (!cleaned.includes('解答：')) cleaned += `\n\n解答：不明`;
+    if (!cleaned.includes('解説：')) cleaned += `\n\n解説：不明`;
+    return cleaned;
+  };
+
+  // ✅ Gemini呼び出し
   const fetchGeminiAnswer = async () => {
     if (!currentQuestion.trim()) {
       Alert.alert('エラー', '問題文を入力してください');
@@ -362,47 +294,61 @@ const QuestionAnswer: React.FC = () => {
     setShowResults(true);
 
     try {
+      const prompt = `
+あなたは専門的で正確な教師です。
+以下の問題について、事実に基づいてのみ回答してください。
+創作・推測・ハルシネーションは禁止です。
+次のフォーマットで出力してください。必ず「科目」「範囲」「解答」「解説」を含めてください。
+わからない場合は「不明」と出力します。
+
+出力フォーマット：
+科目：◯◯
+範囲：◯◯
+解答：◯◯
+解説：◯◯
+
+問題：
+${currentQuestion}
+`;
+
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `${currentQuestion}\n\n---\n科目：〜\n範囲：〜\n解答：〜\n解説：〜`,
-                  },
-                ],
-              },
-            ],
+            contents: [{ parts: [{ text: prompt }] }],
           }),
         }
       );
 
       const data = await response.json();
       const generated = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
       if (generated) {
-        setAiAnswer(generated);
+        const cleaned = normalizeOutput(generated);
+        setAiAnswer(cleaned);
         const newItem: HistoryItem = {
           id: Date.now().toString(),
           question: currentQuestion,
-          answer: generated,
+          answer: cleaned,
           createdAt: new Date().toLocaleString('ja-JP'),
         };
-        setHistory((prev) => [newItem, ...prev]);
+        await addHistoryItem(newItem);
       } else {
         Alert.alert('生成失敗', 'AIから解答を取得できませんでした。');
         setShowResults(false);
       }
-    } catch {
+    } catch (e) {
       Alert.alert('通信エラー', 'Gemini APIとの通信に失敗しました');
       setShowResults(false);
     } finally {
       setLoading(false);
     }
   };
+
+  // ✅ 現在の履歴
+  const history = historyRef.current;
 
   return (
     <View style={{ flex: 1 }}>
@@ -449,7 +395,7 @@ const QuestionAnswer: React.FC = () => {
             <View style={[styles.card, { padding: 16, marginBottom: 16 }]}>
               <Text style={{ fontSize: 18, fontWeight: '600' }}>問題を入力</Text>
               <Text style={{ fontSize: 14, color: Colors.mutedForeground, marginTop: 2 }}>
-                AI解答と解説を自動生成します
+                AIが科目・範囲・解答・解説を生成します
               </Text>
 
               <QuestionInput value={currentQuestion} onChange={setCurrentQuestion} />
@@ -468,18 +414,20 @@ const QuestionAnswer: React.FC = () => {
                   },
                 ]}
               >
-                <Icon
-                  name="Sparkles"
-                  style={{ fontSize: 16, color: Colors.primaryForeground, marginRight: 8 }}
-                />
-                <Text style={{ fontSize: 16, color: Colors.primaryForeground, fontWeight: '600' }}>
+                {loading && <ActivityIndicator color="white" style={{ marginRight: 8 }} />}
+                <Text style={{ fontSize: 16, color: 'white', fontWeight: '600' }}>
                   AI解答を生成
                 </Text>
               </TouchableOpacity>
             </View>
 
             {showResults && (
-              <View style={[styles.card, { padding: 16, borderWidth: 2, borderColor: Colors.primary }]}>
+              <View
+                style={[
+                  styles.card,
+                  { padding: 16, borderWidth: 2, borderColor: Colors.primary },
+                ]}
+              >
                 <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>AI出力</Text>
                 <Text style={{ fontSize: 14, lineHeight: 22 }}>{aiAnswer}</Text>
               </View>
@@ -491,7 +439,7 @@ const QuestionAnswer: React.FC = () => {
           history={history}
           searchKeyword={searchKeyword}
           setSearchKeyword={setSearchKeyword}
-          onDeleteHistory={handleDeleteHistory}
+          onDeleteHistory={deleteHistoryItem}
         />
       )}
     </View>
