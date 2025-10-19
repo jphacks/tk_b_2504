@@ -277,3 +277,5 @@ export const createAiQuestionsHtml = (
     </html>
   `;
 };
+// ./utils/PdfGenerator.tsx の末尾に追加
+export default {};
