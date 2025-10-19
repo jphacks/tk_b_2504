@@ -1,4 +1,4 @@
-// ai_create.tsx
+// ファイル名: ai_create.tsx
 // AIによる類似問題生成コンポーネント（キーボード閉じ対策済み）
 
 import React, { useState } from 'react';
@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Keyboard, Platform, Text, TextInput, Touchabl
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import {
   Colors,
-  GeneratedQuestion,
+  GeneratedQuestion, // ★ 修正: answerフィールドが追加された型を参照
   Icon,
   mockPreviousQuestions,
   Question,
@@ -24,10 +24,13 @@ const QuestionGenerator: React.FC = () => {
   const [selectedQuestion, setSelectedQuestion] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
-  const [numQuestions, setNumQuestions] = useState<string>('3');
-  const [difficulty, setDifficulty] = useState<string>('similar');
+  const [numQuestions, setNumQuestions] = useState<string>('3'); // 使用されていないが残しておく
+  const [difficulty, setDifficulty] = useState<string>('similar'); // 使用されていないが残しておく
   const [subject, setSubject] = useState<string>('');
   const [unit, setUnit] = useState<string>('');
+
+  // ★ 追記: 解答表示状態を管理 (IDをキー、真偽値を値とするマップ)
+  const [showAnswerMap, setShowAnswerMap] = useState<Record<string, boolean>>({});
 
   const handleGenerate = () => {
     if (!selectedQuestion && currentTab === 'history') {
@@ -45,10 +48,11 @@ const QuestionGenerator: React.FC = () => {
     Keyboard.dismiss();
 
     setTimeout(() => {
+      // ⭐ 修正: モックデータに回答 (answer) を追加
       const mockGenerated: GeneratedQuestion[] = [
-        { id: 'g1', text: '相似な三角形の面積比に関する問題を作成せよ。', subject: '数学', difficulty: '応用', copied: false },
-        { id: 'g2', text: '化学反応式 C + O2 -> CO2 の熱化学方程式を記述せよ。', subject: '化学', difficulty: '標準', copied: false },
-        { id: 'g3', text: '現在完了進行形を用いた例文を一つ作成し、日本語訳を添えよ。', subject: '英語', difficulty: '基礎', copied: false },
+        { id: 'g1', text: '相似な三角形の面積比に関する問題を作成せよ。', subject: '数学', difficulty: '応用', copied: false, answer: '相似比が m:n なら、面積比は m²:n² である。' },
+        { id: 'g2', text: '化学反応式 C + O2 -> CO2 の熱化学方程式を記述せよ。', subject: '化学', difficulty: '標準', copied: false, answer: 'C(黒鉛) + O₂(気) = CO₂(気) + 394 kJ' },
+        { id: 'g3', text: '現在完了進行形を用いた例文を一つ作成し、日本語訳を添えよ。', subject: '英語', difficulty: '基礎', copied: false, answer: 'I have been studying English for three hours. (私は3時間ずっと英語を勉強しています。)' },
       ];
 
       if (currentTab === 'range') {
@@ -62,6 +66,10 @@ const QuestionGenerator: React.FC = () => {
       }
 
       setIsGenerating(false);
+      
+      // ★ 解答表示マップをリセット
+      setShowAnswerMap({}); 
+
     }, 2000);
   };
 
@@ -76,6 +84,14 @@ const QuestionGenerator: React.FC = () => {
         q.id === id ? { ...q, copied: false } : q
       ));
     }, 2000);
+  };
+
+  // ★ 追記: 解答表示を切り替えるハンドラー
+  const handleToggleAnswer = (id: string) => {
+    setShowAnswerMap(prev => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
   };
 
   const handleGeneratePdf = async () => {
@@ -140,7 +156,18 @@ const QuestionGenerator: React.FC = () => {
     </View>
   );
 
-  const GeneratedQuestionItem = ({ question, index }: { question: GeneratedQuestion, index: number }) => (
+  // ★ 修正: GeneratedQuestionItemのPropsに解答関連を追加
+  const GeneratedQuestionItem = ({ 
+    question, 
+    index,
+    showAnswerMap,
+    handleToggleAnswer,
+  }: { 
+    question: GeneratedQuestion, 
+    index: number,
+    showAnswerMap: Record<string, boolean>,
+    handleToggleAnswer: (id: string) => void,
+  }) => (
     <View style={[styles.card, { padding: 16, marginBottom: 10 }]}>
       <View style={[styles.flexRow, { justifyContent: 'space-between' }]}>
         <Text style={[styles.textMd, { fontWeight: 'bold' }]}>問題 {index + 1}</Text>
@@ -149,6 +176,36 @@ const QuestionGenerator: React.FC = () => {
         </TouchableOpacity>
       </View>
       <Text style={[styles.textMd, { marginTop: 8 }]}>{question.text}</Text>
+
+      {/* ⭐ 回答表示トグルボタン */}
+      <TouchableOpacity 
+        onPress={() => handleToggleAnswer(question.id)}
+        style={[
+          styles.buttonSecondary, 
+          { 
+            marginTop: 12, 
+            alignSelf: 'flex-start', 
+            borderColor: showAnswerMap[question.id] ? Colors.destructive : Colors.primaryBorder,
+            backgroundColor: Colors.card
+          }
+        ]}
+      >
+        <Icon 
+          name={showAnswerMap[question.id] ? 'ThumbsDown' : 'ThumbsUp'} 
+          style={[styles.textSm, { color: showAnswerMap[question.id] ? Colors.destructive : Colors.primary, marginRight: 6 }]} 
+        />
+        <Text style={[styles.textMd, { color: showAnswerMap[question.id] ? Colors.destructive : Colors.primary }]}>
+          {showAnswerMap[question.id] ? '解答を隠す' : '解答を見る'}
+        </Text>
+      </TouchableOpacity>
+      
+      {/* ⭐ 回答表示エリア */}
+      {showAnswerMap[question.id] && (
+        <View style={{ marginTop: 12, padding: 12, backgroundColor: Colors.greenLight, borderRadius: 8, borderWidth: 1, borderColor: Colors.greenSuccess }}>
+          <Text style={[styles.label, { marginBottom: 4, color: Colors.greenDark }]}>正解</Text>
+          <Text style={styles.textMd}>{question.answer}</Text>
+        </View>
+      )}
     </View>
   );
 
@@ -199,7 +256,13 @@ const QuestionGenerator: React.FC = () => {
           <View style={[styles.card, { padding: 16, borderWidth: 2, marginBottom: 16 }]}>
             <Text style={[styles.textLg, styles.textSemiBold, { marginBottom: 12 }]}>生成された問題</Text>
             {generatedQuestions.map((q, i) => (
-              <GeneratedQuestionItem key={q.id} question={q} index={i} />
+              <GeneratedQuestionItem 
+                key={q.id} 
+                question={q} 
+                index={i} 
+                showAnswerMap={showAnswerMap} // ★ 追加
+                handleToggleAnswer={handleToggleAnswer} // ★ 追加
+              />
             ))}
             <TouchableOpacity onPress={handleGeneratePdf} style={styles.buttonSecondary}>
               <Text style={styles.textPrimary}>PDF出力</Text>

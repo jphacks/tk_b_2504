@@ -1,4 +1,4 @@
-// definition.tsx
+// ファイル名: definition.tsx
 
 import { Text } from 'react-native';
 
@@ -23,6 +23,8 @@ export interface GeneratedQuestion {
     subject: string;
     difficulty: string;
     copied: boolean;
+    // ★ 修正: 回答フィールドを追加
+    answer: string; 
 }
 
 export interface Answer {
