@@ -5,12 +5,12 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import {
-    Colors,
-    GeneratedQuestion,
-    Icon,
-    mockPreviousQuestions,
-    Question,
-    styles
+  Colors,
+  GeneratedQuestion,
+  Icon,
+  mockPreviousQuestions,
+  Question,
+  styles
 } from './definition';
 
 // ⭐ 追加: 安定した入力フィールドを定義
@@ -43,20 +43,119 @@ import { createAiQuestionsHtml, generatePdfFromHtml } from './utils/PdfGenerator
 const GEMINI_API_KEY = "AIzaSyAgUl9pHBs6sWKFhn9EGfhDnSbx7CFKVv8";
 const GEMINI_MODEL = "models/gemini-2.5-pro";
 
+// ⭐ 追加: API応答をパースするためのヘルパー型
+interface ParsedQuestion {
+    text: string;
+    answer: string;
+    subject: string;
+    difficulty: string;
+}
+
+// ⭐ 追加: API応答をパースするヘルパー関数
+const parseGeneratedQuestions = (text: string): ParsedQuestion[] => {
+    // 応答はJSON形式を想定するが、ここでは行ベースのパースに簡易化
+    // 理想的には、モデルにJSON出力フォーマットを強制するのがベストプラクティス
+    const questions: ParsedQuestion[] = [];
+    const lines = text.split('\n').filter(line => line.trim() !== '');
+    
+    let currentQ: Partial<ParsedQuestion> = {};
+    let isParsingQuestion = false;
+
+    lines.forEach(line => {
+        if (line.startsWith('---Q')) {
+            // 前の問題を保存し、新しい問題のパースを開始
+            if (currentQ.text && currentQ.answer) {
+                questions.push({
+                    text: currentQ.text.trim(),
+                    answer: currentQ.answer.trim(),
+                    subject: currentQ.subject || '不明',
+                    difficulty: currentQ.difficulty || '標準'
+                });
+            }
+            currentQ = {};
+            isParsingQuestion = true;
+            return;
+        }
+
+        if (isParsingQuestion) {
+            if (line.startsWith('問題:')) {
+                currentQ.text = line.replace('問題:', '').trim();
+            } else if (line.startsWith('解答:')) {
+                currentQ.answer = line.replace('解答:', '').trim();
+            } else if (line.startsWith('科目:')) {
+                currentQ.subject = line.replace('科目:', '').trim();
+            } else if (line.startsWith('難易度:')) {
+                currentQ.difficulty = line.replace('難易度:', '').trim();
+            } else if (currentQ.text && !currentQ.answer) {
+                // 問題文が複数行にわたる場合を考慮（簡略化のため、ここでは単純な行追加）
+                currentQ.text += ` ${line}`;
+            }
+        }
+    });
+
+    // 最後の問題を保存
+    if (currentQ.text && currentQ.answer) {
+        questions.push({
+            text: currentQ.text.trim(),
+            answer: currentQ.answer.trim(),
+            subject: currentQ.subject || '不明',
+            difficulty: currentQ.difficulty || '標準'
+        });
+    }
+
+    return questions;
+};
+
+// ⭐ 追加: Gemini APIに送信するプロンプトを生成するヘルパー関数
+const createGeminiPrompt = (tab: 'range' | 'history', selectedQ: string, subject: string, unit: string): string => {
+    let sourceText = '';
+    if (tab === 'history' && selectedQ) {
+        sourceText = `以下の問題と類似した問題を3問作成してください。\n元の問題: ${selectedQ}`;
+    } else {
+        sourceText = `科目「${subject}」、単元・範囲「${unit}」に関する問題を3問作成してください。`;
+    }
+
+    return `
+あなたはAIの家庭教師です。生徒の学習のために、専門的で正確な問題を3問作成してください。
+解答や解説は含めず、以下のフォーマットで出力してください。
+
+${sourceText}
+
+出力フォーマット (各問題の間に区切り線 ---Q[n] を必ず入れてください。nは問題番号です):
+---Q1
+科目: ◯◯
+難易度: 基礎/標準/応用
+問題: ◯◯
+解答: ◯◯
+---Q2
+科目: ◯◯
+難易度: 基礎/標準/応用
+問題: ◯◯
+解答: ◯◯
+---Q3
+科目: ◯◯
+難易度: 基礎/標準/応用
+問題: ◯◯
+解答: ◯◯
+`;
+};
+
+
 const QuestionGenerator: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<'range' | 'history'>('range');
   const [selectedQuestion, setSelectedQuestion] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
-  const [numQuestions, setNumQuestions] = useState<string>('3');
-  const [difficulty, setDifficulty] = useState<string>('similar');
+  const [numQuestions, setNumQuestions] = useState<string>('3'); // 使用されていないが残しておく
+  const [difficulty, setDifficulty] = useState<string>('similar'); // 使用されていないが残しておく
   const [subject, setSubject] = useState<string>('');
   const [unit, setUnit] = useState<string>('');
 
   // 解答表示状態を管理
   const [showAnswerMap, setShowAnswerMap] = useState<Record<string, boolean>>({});
 
-  const handleGenerate = () => {
+  // ⭐ 修正: handleGenerateを非同期関数にし、API呼び出しロジックを追加
+  const handleGenerate = async () => {
     if (!selectedQuestion && currentTab === 'history') {
       Alert.alert('エラー', '解答履歴から類似問題を生成するには、元となる問題を選択してください。');
       return;
@@ -70,31 +169,52 @@ const QuestionGenerator: React.FC = () => {
     if (isGenerating) return;
     setIsGenerating(true);
     Keyboard.dismiss();
+    setGeneratedQuestions([]);
+    setShowAnswerMap({}); 
 
-    setTimeout(() => {
-      // 修正: モックデータに回答 (answer) を追加
-      const mockGenerated: GeneratedQuestion[] = [
-        { id: 'g1', text: '相似な三角形の面積比に関する問題を作成せよ。', subject: '数学', difficulty: '応用', copied: false, answer: '相似比が m:n なら、面積比は m²:n² である。' },
-        { id: 'g2', text: '化学反応式 C + O2 -> CO2 の熱化学方程式を記述せよ。', subject: '化学', difficulty: '標準', copied: false, answer: 'C(黒鉛) + O₂(気) = CO₂(気) + 394 kJ' },
-        { id: 'g3', text: '現在完了進行形を用いた例文を一つ作成し、日本語訳を添えよ。', subject: '英語', difficulty: '基礎', copied: false, answer: 'I have been studying English for three hours. (私は3時間ずっと英語を勉強しています。)' },
-      ];
+    const prompt = createGeminiPrompt(currentTab, selectedQuestion, subject, unit);
 
-      if (currentTab === 'range') {
-        setGeneratedQuestions(mockGenerated.map((q, i) => ({
-          ...q,
-          text: `${q.text} (指定範囲: ${subject} / ${unit})`,
-          id: `r${i}`
-        })));
-      } else {
-        setGeneratedQuestions(mockGenerated);
-      }
+    try {
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                }),
+            }
+        );
 
-      setIsGenerating(false);
-      
-      // 解答表示マップをリセット
-      setShowAnswerMap({}); 
+        const data = await response.json();
+        const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    }, 2000);
+        if (generatedText) {
+            const parsed = parseGeneratedQuestions(generatedText);
+            
+            if (parsed.length > 0) {
+                const finalQuestions: GeneratedQuestion[] = parsed.map((q, index) => ({
+                    id: `gen-${Date.now()}-${index}`,
+                    text: q.text,
+                    subject: q.subject,
+                    difficulty: q.difficulty,
+                    copied: false,
+                    answer: q.answer,
+                }));
+                setGeneratedQuestions(finalQuestions);
+            } else {
+                Alert.alert('生成失敗', 'AIから有効な形式の問題を取得できませんでした。');
+            }
+        } else {
+            Alert.alert('生成失敗', 'AIから問題を生成できませんでした。応答を確認してください。');
+        }
+
+    } catch (e) {
+        console.error("Gemini API Error:", e);
+        Alert.alert('通信エラー', 'Gemini APIとの通信に失敗しました。');
+    } finally {
+        setIsGenerating(false);
+    }
   };
 
   const handleCopy = (id: string) => {
@@ -125,7 +245,11 @@ const QuestionGenerator: React.FC = () => {
     }
 
     const source = currentTab === 'history' ? selectedQuestion : `科目: ${subject}\n単元・範囲: ${unit}`;
-    const html = createAiQuestionsHtml(generatedQuestions, source);
+    const html = createAiQuestionsHtml(generatedQuestions.map(q => ({
+        text: q.text,
+        subject: q.subject,
+        difficulty: q.difficulty
+    })), source);
     await generatePdfFromHtml(html, 'AI生成問題.pdf');
   };
 
