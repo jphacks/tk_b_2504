@@ -12,6 +12,8 @@ import {
   Question,
   styles
 } from './definition';
+
+// ★ PDF生成用の関数をインポート
 import { createAiQuestionsHtml, generatePdfFromHtml } from './utils/PdfGenerator';
 
 const GEMINI_API_KEY = "AIzaSyAgUl9pHBs6sWKFhn9EGfhDnSbx7CFKVv8";
