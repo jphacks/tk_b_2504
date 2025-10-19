@@ -176,7 +176,7 @@ export const formatDuration = (seconds: number): string => {
 };
 
 // ★ 修正後の formatMinToHourMin 関数
-export const formatMinToHourMin = (min: number, secondsRemain: number): string => {
+export const formatMinToHourMin = (min: number, secondsRemain: number = 0): string => {
     const totalMinutes = min;
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;

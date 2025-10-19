@@ -2,16 +2,40 @@
 // AIによる類似問題生成コンポーネント（キーボード閉じ対策済み）
 
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import {
-  Colors,
-  GeneratedQuestion, // ★ 修正: answerフィールドが追加された型を参照
-  Icon,
-  mockPreviousQuestions,
-  Question,
-  styles
+    Colors,
+    GeneratedQuestion,
+    Icon,
+    mockPreviousQuestions,
+    Question,
+    styles
 } from './definition';
+
+// ⭐ 追加: 安定した入力フィールドを定義
+interface ControlledInputProps {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  marginTop?: number;
+}
+
+const ControlledInput = React.memo(({ label, value, onChangeText, placeholder, marginTop = 0 }: ControlledInputProps) => (
+    <>
+      <Text style={[styles.label, marginTop > 0 ? { marginTop } : {}]}>{label}</Text>
+      <TextInput
+        style={styles.inputBase}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        // blurOnSubmit=falseは継続
+        blurOnSubmit={false} 
+      />
+    </>
+));
+
 
 // ★ PDF生成用の関数をインポート
 import { createAiQuestionsHtml, generatePdfFromHtml } from './utils/PdfGenerator';
@@ -24,12 +48,12 @@ const QuestionGenerator: React.FC = () => {
   const [selectedQuestion, setSelectedQuestion] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
-  const [numQuestions, setNumQuestions] = useState<string>('3'); // 使用されていないが残しておく
-  const [difficulty, setDifficulty] = useState<string>('similar'); // 使用されていないが残しておく
+  const [numQuestions, setNumQuestions] = useState<string>('3');
+  const [difficulty, setDifficulty] = useState<string>('similar');
   const [subject, setSubject] = useState<string>('');
   const [unit, setUnit] = useState<string>('');
 
-  // ★ 追記: 解答表示状態を管理 (IDをキー、真偽値を値とするマップ)
+  // 解答表示状態を管理
   const [showAnswerMap, setShowAnswerMap] = useState<Record<string, boolean>>({});
 
   const handleGenerate = () => {
@@ -48,7 +72,7 @@ const QuestionGenerator: React.FC = () => {
     Keyboard.dismiss();
 
     setTimeout(() => {
-      // ⭐ 修正: モックデータに回答 (answer) を追加
+      // 修正: モックデータに回答 (answer) を追加
       const mockGenerated: GeneratedQuestion[] = [
         { id: 'g1', text: '相似な三角形の面積比に関する問題を作成せよ。', subject: '数学', difficulty: '応用', copied: false, answer: '相似比が m:n なら、面積比は m²:n² である。' },
         { id: 'g2', text: '化学反応式 C + O2 -> CO2 の熱化学方程式を記述せよ。', subject: '化学', difficulty: '標準', copied: false, answer: 'C(黒鉛) + O₂(気) = CO₂(気) + 394 kJ' },
@@ -67,7 +91,7 @@ const QuestionGenerator: React.FC = () => {
 
       setIsGenerating(false);
       
-      // ★ 解答表示マップをリセット
+      // 解答表示マップをリセット
       setShowAnswerMap({}); 
 
     }, 2000);
@@ -86,7 +110,7 @@ const QuestionGenerator: React.FC = () => {
     }, 2000);
   };
 
-  // ★ 追記: 解答表示を切り替えるハンドラー
+  // 解答表示を切り替えるハンドラー
   const handleToggleAnswer = (id: string) => {
     setShowAnswerMap(prev => ({
       ...prev,
@@ -107,22 +131,21 @@ const QuestionGenerator: React.FC = () => {
 
   const RangeContent = () => (
     <View style={styles.contentSection}>
-      <Text style={styles.label}>科目</Text>
-      <TextInput
-        style={styles.inputBase}
+      {/* 修正: ControlledInputを使用 */}
+      <ControlledInput
+        label="科目"
         value={subject}
         onChangeText={setSubject}
         placeholder="例: 数学"
-        blurOnSubmit={false}
       />
 
-      <Text style={[styles.label, { marginTop: 10 }]}>単元・範囲</Text>
-      <TextInput
-        style={styles.inputBase}
+      {/* 修正: ControlledInputを使用 */}
+      <ControlledInput
+        label="単元・範囲"
         value={unit}
         onChangeText={setUnit}
         placeholder="例: 三平方の定理"
-        blurOnSubmit={false}
+        marginTop={10}
       />
     </View>
   );
@@ -156,7 +179,6 @@ const QuestionGenerator: React.FC = () => {
     </View>
   );
 
-  // ★ 修正: GeneratedQuestionItemのPropsに解答関連を追加
   const GeneratedQuestionItem = ({ 
     question, 
     index,
@@ -177,7 +199,7 @@ const QuestionGenerator: React.FC = () => {
       </View>
       <Text style={[styles.textMd, { marginTop: 8 }]}>{question.text}</Text>
 
-      {/* ⭐ 回答表示トグルボタン */}
+      {/* 回答表示トグルボタン */}
       <TouchableOpacity 
         onPress={() => handleToggleAnswer(question.id)}
         style={[
@@ -199,7 +221,7 @@ const QuestionGenerator: React.FC = () => {
         </Text>
       </TouchableOpacity>
       
-      {/* ⭐ 回答表示エリア */}
+      {/* 回答表示エリア */}
       {showAnswerMap[question.id] && (
         <View style={{ marginTop: 12, padding: 12, backgroundColor: Colors.greenLight, borderRadius: 8, borderWidth: 1, borderColor: Colors.greenSuccess }}>
           <Text style={[styles.label, { marginBottom: 4, color: Colors.greenDark }]}>正解</Text>
@@ -212,9 +234,12 @@ const QuestionGenerator: React.FC = () => {
   return (
     <KeyboardAwareScrollView
       contentContainerStyle={{ flexGrow: 1, paddingVertical: 10, paddingHorizontal: 16 }}
-      keyboardShouldPersistTaps="always"
+      keyboardShouldPersistTaps="handled" 
       enableOnAndroid={true}
-      extraScrollHeight={Platform.OS === 'ios' ? 30 : 80}
+      // ⭐ 修正1: extraScrollHeightを0に設定
+      extraScrollHeight={0}
+      // ⭐ 修正2: 下部タブバーがあるためviewIsInsideTabBarをtrueに設定
+      viewIsInsideTabBar={true} 
     >
       <View style={{ flex: 1 }}>
         {/* 上部カード */}
@@ -260,8 +285,8 @@ const QuestionGenerator: React.FC = () => {
                 key={q.id} 
                 question={q} 
                 index={i} 
-                showAnswerMap={showAnswerMap} // ★ 追加
-                handleToggleAnswer={handleToggleAnswer} // ★ 追加
+                showAnswerMap={showAnswerMap} 
+                handleToggleAnswer={handleToggleAnswer} 
               />
             ))}
             <TouchableOpacity onPress={handleGeneratePdf} style={styles.buttonSecondary}>
