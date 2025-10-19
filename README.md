@@ -1,6 +1,6 @@
 # Aicademy（アイカデミー)
 今までにない生成AIを用いた勉強記録＋解答解説アプリ
-[![IMAGE ALT TEXT HERE](https://drive.google.com/file/d/1b4AN5iAP08Prx9rXpJBhem0_FRmK8JJ4/view?usp=sharing)](https://youtube.com/shorts/Bwb1Iq5yzIg?si=0F1CPZzOngfow2IX)
+[![IMAGE ALT TEXT HERE](https://drive.google.com/uc?export=view&id=1b4AN5iAP08Prx9rXpJBhem0_FRmK8JJ4)](https://youtube.com/shorts/Bwb1Iq5yzIg?si=0F1CPZzOngfow2IX)
 
 デモ動画は上記の画像をクリックすると閲覧できます。
 
