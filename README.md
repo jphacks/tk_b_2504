@@ -4,6 +4,9 @@
 
 デモ動画は上記の画像をクリックすると閲覧できます。
 
+### スライドリンク
+https://nihonkogakuin-my.sharepoint.com/:p:/g/personal/c0a2406616_apps_teu_ac_jp/Ec6MvwatbOVMtuj3xnRC8LgBKtF4BCeFzCTVNLU6XXHxuA?e=oPhTjy
+
 ## 製品概要
 生成AI勉強アプリ×Tech
 
